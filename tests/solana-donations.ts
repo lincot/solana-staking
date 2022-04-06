@@ -1,5 +1,5 @@
 import * as anchor from "@project-serum/anchor";
-import { Program } from "@project-serum/anchor";
+import { BN, Program } from "@project-serum/anchor";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import {
   createAccount,
@@ -110,8 +110,8 @@ describe("registry", () => {
       mint,
       registryAuthority.publicKey,
       registrarSignerNonce,
-      new anchor.BN(2),
-      new anchor.BN(2),
+      new BN(2),
+      new BN(2),
       170,
     ).accounts({
       registrar: registrar.publicKey,
@@ -166,7 +166,7 @@ describe("registry", () => {
   it("deposits", async () => {
     const amount = 120;
 
-    await registry.methods.deposit(new anchor.BN(amount)).accounts({
+    await registry.methods.deposit(new BN(amount)).accounts({
       member: member.publicKey,
       beneficiary: beneficiary.publicKey,
       available: available.publicKey,
@@ -185,7 +185,7 @@ describe("registry", () => {
   it("stakes", async () => {
     const amount = 10;
 
-    await registry.methods.stake(new anchor.BN(amount)).accounts({
+    await registry.methods.stake(new BN(amount)).accounts({
       registrar: registrar.publicKey,
       rewardQueue: rewardQueue.publicKey,
       poolMint,
@@ -220,7 +220,7 @@ describe("registry", () => {
 
   it("drops reward", async () => {
     const amount = 200;
-    const expiry = new anchor.BN(Date.now() / 1000 + 5);
+    const expiry = new BN(Date.now() / 1000 + 5);
 
     [vendorSigner, vendorSignerNonce] = await anchor.web3.PublicKey
       .findProgramAddress(
@@ -231,7 +231,7 @@ describe("registry", () => {
     await createAccount(connection, payer, mint, vendorSigner, vendorVault);
 
     await registry.methods.dropReward(
-      new anchor.BN(amount),
+      new BN(amount),
       expiry,
       godDepositor,
       vendorSignerNonce,
@@ -287,7 +287,7 @@ describe("registry", () => {
   it("starts unstake", async () => {
     const amount = 10;
 
-    await registry.methods.startUnstake(new anchor.BN(amount)).accounts({
+    await registry.methods.startUnstake(new BN(amount)).accounts({
       registrar: registrar.publicKey,
       rewardQueue: rewardQueue.publicKey,
       poolMint,
@@ -372,7 +372,7 @@ describe("registry", () => {
       beneficiaryDepositor,
     )).amount;
 
-    await registry.methods.withdraw(new anchor.BN(amount)).accounts({
+    await registry.methods.withdraw(new BN(amount)).accounts({
       registrar: registrar.publicKey,
       member: member.publicKey,
       beneficiary: beneficiary.publicKey,
