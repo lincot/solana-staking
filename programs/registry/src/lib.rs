@@ -134,9 +134,7 @@ pub mod registry {
             to: ctx.accounts.vendor_vault.to_account_info(),
             authority: ctx.accounts.depositor_authority.to_account_info(),
         };
-
         let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
-
         token::transfer(cpi_ctx, total)?;
 
         let reward_queue = &mut ctx.accounts.reward_queue;

@@ -35,22 +35,22 @@ describe("registry", () => {
     );
   });
 
-  let mint: PublicKey;
   const mintAuthority = new Keypair();
   const god = new Keypair();
-  let godDepositor: PublicKey;
   const beneficiary = new Keypair();
-  let beneficiaryDepositor: PublicKey;
 
-  it("creates mint", async () => {
-    mint = await createMint(
+  const createMintAndVaults = async (
+    decimals: number,
+  ): Promise<[PublicKey, PublicKey, PublicKey]> => {
+    const mint = await createMint(
       connection,
       payer,
       mintAuthority.publicKey,
       undefined,
-      0,
+      decimals,
     );
-    godDepositor = await createAccount(
+
+    const godDepositor = await createAccount(
       connection,
       payer,
       mint,
@@ -65,13 +65,12 @@ describe("registry", () => {
       1000000,
     );
 
-    beneficiaryDepositor = await createAccount(
+    const beneficiaryDepositor = await createAccount(
       connection,
       payer,
       mint,
       beneficiary.publicKey,
     );
-
     await transfer(
       connection,
       payer,
@@ -80,6 +79,16 @@ describe("registry", () => {
       god,
       500,
     );
+
+    return [mint, godDepositor, beneficiaryDepositor];
+  };
+
+  let mint: PublicKey;
+  let godDepositor: PublicKey;
+  let beneficiaryDepositor: PublicKey;
+
+  it("creates mint", async () => {
+    [mint, godDepositor, beneficiaryDepositor] = await createMintAndVaults(2);
   });
 
   const registrar = new Keypair();
@@ -213,20 +222,21 @@ describe("registry", () => {
     expect(sptAccount.amount).to.eql(BigInt(10));
   });
 
-  const vendor = new Keypair();
-  const vendorVault = new Keypair();
-  let vendorSigner: PublicKey;
-  let vendorSignerNonce: number;
+  const dropReward = async (
+    mint: PublicKey,
+    depositor: PublicKey,
+  ): Promise<[Keypair, Keypair, PublicKey]> => {
+    const vendor = new Keypair();
+    const vendorVault = new Keypair();
 
-  it("drops reward", async () => {
-    const amount = 200;
-    const expiry = new BN(Date.now() / 1000 + 5);
-
-    [vendorSigner, vendorSignerNonce] = await anchor.web3.PublicKey
+    const [vendorSigner, vendorSignerNonce] = await anchor.web3.PublicKey
       .findProgramAddress(
         [registrar.publicKey.toBuffer(), vendor.publicKey.toBuffer()],
         registry.programId,
       );
+
+    const amount = 200;
+    const expiry = new BN(Date.now() / 1000 + 9);
 
     await createAccount(connection, payer, mint, vendorSigner, vendorVault);
 
@@ -241,12 +251,41 @@ describe("registry", () => {
       poolMint,
       vendor: vendor.publicKey,
       vendorVault: vendorVault.publicKey,
-      depositor: godDepositor,
+      depositor,
       depositorAuthority: god.publicKey,
       tokenProgram: TOKEN_PROGRAM_ID,
     }).signers([vendor, god]).preInstructions([
       await registry.account.rewardVendor.createInstruction(vendor),
     ]).rpc();
+
+    return [vendor, vendorVault, vendorSigner];
+  };
+
+  const claimReward = async (
+    vendor: PublicKey,
+    vendorVault: PublicKey,
+    vendorSigner: PublicKey,
+    to: PublicKey,
+  ) => {
+    await registry.methods.claimReward().accounts({
+      to,
+      registrar: registrar.publicKey,
+      member: member.publicKey,
+      beneficiary: beneficiary.publicKey,
+      spt: spt.publicKey,
+      vendor,
+      vault: vendorVault,
+      vendorSigner: vendorSigner,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    }).signers([beneficiary]).rpc();
+  };
+
+  let vendor: Keypair;
+  let vendorVault: Keypair;
+  let vendorSigner: PublicKey;
+
+  it("drops reward", async () => {
+    [vendor, vendorVault, vendorSigner] = await dropReward(mint, godDepositor);
   });
 
   it("claims reward", async () => {
@@ -255,25 +294,57 @@ describe("registry", () => {
       beneficiaryDepositor,
     )).amount;
 
-    await registry.methods.claimReward().accounts({
-      to: beneficiaryDepositor,
-      registrar: registrar.publicKey,
-
-      member: member.publicKey,
-      beneficiary: beneficiary.publicKey,
-
-      spt: spt.publicKey,
-
-      vendor: vendor.publicKey,
-      vault: vendorVault.publicKey,
-      vendorSigner: vendorSigner,
-
-      tokenProgram: TOKEN_PROGRAM_ID,
-    }).signers([beneficiary]).rpc();
+    await claimReward(
+      vendor.publicKey,
+      vendorVault.publicKey,
+      vendorSigner,
+      beneficiaryDepositor,
+    );
 
     const amount_after = (await getAccount(
       connection,
       beneficiaryDepositor,
+    )).amount;
+
+    expect(amount_after - amount_before).to.eq(BigInt(200));
+  });
+
+  let mintAnother: PublicKey;
+  let godDepositorAnother: PublicKey;
+  let beneficiaryDepositorAnother: PublicKey;
+
+  it("creates another mint", async () => {
+    [mintAnother, godDepositorAnother, beneficiaryDepositorAnother] =
+      await createMintAndVaults(6);
+  });
+
+  let vendorAnother: Keypair;
+  let vendorVaultAnother: Keypair;
+  let vendorSignerAnother: PublicKey;
+
+  it("drops reward in another token", async () => {
+    [vendorAnother, vendorVaultAnother, vendorSignerAnother] = await dropReward(
+      mintAnother,
+      godDepositorAnother,
+    );
+  });
+
+  it("claims reward in another token", async () => {
+    const amount_before = (await getAccount(
+      connection,
+      beneficiaryDepositorAnother,
+    )).amount;
+
+    await claimReward(
+      vendorAnother.publicKey,
+      vendorVaultAnother.publicKey,
+      vendorSignerAnother,
+      beneficiaryDepositorAnother,
+    );
+
+    const amount_after = (await getAccount(
+      connection,
+      beneficiaryDepositorAnother,
     )).amount;
 
     expect(amount_after - amount_before).to.eq(BigInt(200));
@@ -288,17 +359,13 @@ describe("registry", () => {
       registrar: registrar.publicKey,
       rewardQueue: rewardQueue.publicKey,
       poolMint,
-
       pendingWithdrawal: pendingWithdrawal.publicKey,
       member: member.publicKey,
       beneficiary: beneficiary.publicKey,
-
       spt: spt.publicKey,
       stake: stake.publicKey,
       pending: pending.publicKey,
-
       memberSigner,
-
       tokenProgram: TOKEN_PROGRAM_ID,
     }).signers([beneficiary, pendingWithdrawal]).preInstructions([
       await registry.account.pendingWithdrawal.createInstruction(
@@ -323,16 +390,12 @@ describe("registry", () => {
   const endUnstake = async () => {
     await registry.methods.endUnstake().accounts({
       registrar: registrar.publicKey,
-
       member: member.publicKey,
       beneficiary: beneficiary.publicKey,
       pendingWithdrawal: pendingWithdrawal.publicKey,
-
       available: available.publicKey,
       pending: pending.publicKey,
-
       memberSigner,
-
       tokenProgram: TOKEN_PROGRAM_ID,
     }).signers([beneficiary]).rpc();
   };
