@@ -4,8 +4,10 @@ use anchor_lang::prelude::*;
 pub enum RegistryError {
     #[msg("Reward vendors must have at least one token unit per pool token")]
     InsufficientReward,
-    #[msg("Reward expiry must be after the current clock timestamp.")]
+    #[msg("Reward expiry must be after the current clock timestamp")]
     InvalidExpiry,
-    #[msg("The unstake timelock has not yet expired.")]
+    #[msg("The unstake timelock has not yet expired")]
     UnstakeTimelock,
+    #[msg("The vendor is not yet eligible for expiry")]
+    VendorNotYetExpired,
 }

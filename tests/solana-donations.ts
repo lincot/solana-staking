@@ -233,19 +233,16 @@ describe("registry", () => {
     await registry.methods.dropReward(
       new BN(amount),
       expiry,
-      godDepositor,
+      god.publicKey,
       vendorSignerNonce,
     ).accounts({
       registrar: registrar.publicKey,
       rewardQueue: rewardQueue.publicKey,
       poolMint,
-
       vendor: vendor.publicKey,
       vendorVault: vendorVault.publicKey,
-
       depositor: godDepositor,
       depositorAuthority: god.publicKey,
-
       tokenProgram: TOKEN_PROGRAM_ID,
     }).signers([vendor, god]).preInstructions([
       await registry.account.rewardVendor.createInstruction(vendor),
@@ -345,7 +342,7 @@ describe("registry", () => {
   });
 
   it("waits for unstake timelock to end", async () => {
-    await sleep(5000);
+    await sleep(2000);
   });
 
   it("ends unstake", async () => {
@@ -388,5 +385,41 @@ describe("registry", () => {
     )).amount;
 
     expect(amount_after - amount_before).to.eq(BigInt(amount));
+  });
+
+  const expireReward = async () => {
+    await registry.methods.expireReward().accounts({
+      registrar: registrar.publicKey,
+      vendor: vendor.publicKey,
+      vault: vendorVault.publicKey,
+      vendorSigner,
+      expiryReceiver: god.publicKey,
+      expiryReceiverToken: godDepositor,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    }).signers([vendor, god]).rpc();
+  };
+
+  it("fails to expire before timelock", async () => {
+    await expect(expireReward()).to.be.rejected;
+  });
+
+  it("waits for expiry timelock to end", async () => {
+    await sleep(3000);
+  });
+
+  it("expires reward", async () => {
+    const amount_before = (await getAccount(
+      connection,
+      godDepositor,
+    )).amount;
+
+    await expireReward();
+
+    const amount_after = (await getAccount(
+      connection,
+      godDepositor,
+    )).amount;
+
+    expect(amount_after - amount_before).to.eq(BigInt(0));
   });
 });

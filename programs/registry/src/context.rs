@@ -93,7 +93,7 @@ pub struct DropReward<'info> {
     #[account(mut)]
     pub reward_queue: Account<'info, RewardQueue>,
     pub pool_mint: Account<'info, Mint>,
-    #[account(zero)]
+    #[account(zero, signer)]
     pub vendor: Account<'info, RewardVendor>,
     #[account(mut)]
     pub vendor_vault: Account<'info, TokenAccount>,
@@ -192,5 +192,24 @@ pub struct Withdraw<'info> {
     pub member_signer: UncheckedAccount<'info>,
     #[account(mut)]
     pub depositor: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct ExpireReward<'info> {
+    pub registrar: Account<'info, Registrar>,
+    #[account(mut, signer, has_one = registrar, has_one = vault, has_one = expiry_receiver)]
+    pub vendor: Account<'info, RewardVendor>,
+    #[account(mut)]
+    pub vault: Account<'info, TokenAccount>,
+    /// CHECK:
+    #[account(
+        seeds = [registrar.to_account_info().key.as_ref(), vendor.to_account_info().key.as_ref()],
+        bump = vendor.nonce
+    )]
+    pub vendor_signer: UncheckedAccount<'info>,
+    pub expiry_receiver: Signer<'info>,
+    #[account(mut, constraint = expiry_receiver_token.owner == expiry_receiver.key())]
+    pub expiry_receiver_token: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }

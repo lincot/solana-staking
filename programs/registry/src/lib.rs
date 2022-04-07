@@ -69,6 +69,8 @@ pub mod registry {
     }
 
     pub fn stake(ctx: Context<Stake>, spt_amount: u64) -> Result<()> {
+        let ts = Clock::get()?.unix_timestamp;
+
         let seeds = &[
             ctx.accounts.registrar.to_account_info().key.as_ref(),
             ctx.accounts.member.to_account_info().key.as_ref(),
@@ -106,7 +108,7 @@ pub mod registry {
         token::mint_to(cpi_ctx, spt_amount)?;
 
         let member = &mut ctx.accounts.member;
-        member.last_stake_ts = Clock::get()?.unix_timestamp;
+        member.last_stake_ts = ts;
 
         Ok(())
     }
@@ -293,5 +295,35 @@ pub mod registry {
         );
 
         token::transfer(cpi_ctx, amount).map_err(Into::into)
+    }
+
+    pub fn expire_reward(ctx: Context<ExpireReward>) -> Result<()> {
+        let ts = Clock::get()?.unix_timestamp;
+
+        if ts < ctx.accounts.vendor.expiry_ts {
+            return err!(RegistryError::VendorNotYetExpired);
+        }
+
+        let seeds = &[
+            ctx.accounts.registrar.to_account_info().key.as_ref(),
+            ctx.accounts.vendor.to_account_info().key.as_ref(),
+            &[ctx.accounts.vendor.nonce],
+        ];
+        let signer = &[&seeds[..]];
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            token::Transfer {
+                to: ctx.accounts.expiry_receiver_token.to_account_info(),
+                from: ctx.accounts.vault.to_account_info(),
+                authority: ctx.accounts.vendor_signer.to_account_info(),
+            },
+            signer,
+        );
+        token::transfer(cpi_ctx, ctx.accounts.vault.amount)?;
+
+        let vendor = &mut ctx.accounts.vendor;
+        vendor.expired = true;
+
+        Ok(())
     }
 }
