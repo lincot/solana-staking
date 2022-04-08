@@ -242,6 +242,7 @@ describe("registry", () => {
 
     await registry.methods.dropReward(
       new BN(amount),
+      0.0,
       expiry,
       god.publicKey,
       vendorSignerNonce,

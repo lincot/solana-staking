@@ -115,12 +115,24 @@ pub mod registry {
 
     pub fn drop_reward(
         ctx: Context<DropReward>,
-        total: u64,
+        fixed: u64,
+        per_spt: f64,
         expiry_ts: i64,
         expiry_receiver: Pubkey,
         nonce: u8,
     ) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp;
+
+        let per_spt_total = per_spt * ctx.accounts.pool_mint.supply as f64;
+        let per_spt_total = if per_spt_total > u64::MAX as f64 {
+            return err!(RegistryError::RewardTooHigh);
+        } else {
+            per_spt_total as u64
+        };
+
+        let total = fixed
+            .checked_add(per_spt_total)
+            .ok_or(RegistryError::RewardTooHigh)?;
 
         if total < ctx.accounts.pool_mint.supply {
             return err!(RegistryError::InsufficientReward);
