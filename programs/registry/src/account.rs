@@ -9,6 +9,7 @@ pub struct Registrar {
     pub mint: Pubkey,
     pub pool_mint: Pubkey,
     pub stake_rate: u64,
+    pub vendor_vault: Pubkey,
 }
 
 #[derive(Default, Clone, Copy, Debug, AnchorSerialize, AnchorDeserialize)]
@@ -83,9 +84,7 @@ pub struct Member {
 #[account]
 pub struct RewardVendor {
     pub registrar: Pubkey,
-    pub vault: Pubkey,
     pub mint: Pubkey,
-    pub nonce: u8,
     pub pool_token_supply: u64,
     pub reward_event_q_cursor: u32,
     pub start_ts: i64,

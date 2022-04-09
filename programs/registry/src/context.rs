@@ -3,18 +3,24 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, TokenAccount, Token};
 
 #[derive(Accounts)]
+#[instruction(nonce: u8)]
 pub struct Initialize<'info> {
     #[account(zero)]
     pub registrar: Account<'info, Registrar>,
     #[account(zero)]
     pub reward_queue: Account<'info, RewardQueue>,
+    /// CHECK:
+    #[account(seeds = [registrar.key().as_ref()], bump = nonce)]
+    pub registrar_signer: UncheckedAccount<'info>,
     #[account(constraint = pool_mint.decimals == 0)]
     pub pool_mint: Account<'info, Mint>,
+    #[account(constraint = vendor_vault.owner == registrar_signer.key())]
+    pub vendor_vault: Account<'info, TokenAccount>,
 }
 
 #[derive(Accounts)]
 pub struct CreateMember<'info> {
-    pub registrar: Account<'info, Registrar>,
+    pub registrar: Box<Account<'info, Registrar>>,
     #[account(zero)]
     pub member: Box<Account<'info, Member>>,
     pub beneficiary: Signer<'info>,
@@ -62,7 +68,7 @@ pub struct Deposit<'info> {
 
 #[derive(Accounts)]
 pub struct Stake<'info> {
-    #[account(signer, has_one = pool_mint, has_one = reward_queue)]
+    #[account(has_one = pool_mint, has_one = reward_queue)]
     pub registrar: Account<'info, Registrar>,
     pub reward_queue: Account<'info, RewardQueue>,
     #[account(mut)]
@@ -88,7 +94,7 @@ pub struct Stake<'info> {
 
 #[derive(Accounts)]
 pub struct DropReward<'info> {
-    #[account(has_one = reward_queue, has_one = pool_mint)]
+    #[account(has_one = reward_queue, has_one = pool_mint, has_one = vendor_vault)]
     pub registrar: Account<'info, Registrar>,
     #[account(mut)]
     pub reward_queue: Account<'info, RewardQueue>,
@@ -105,26 +111,23 @@ pub struct DropReward<'info> {
 
 #[derive(Accounts)]
 pub struct ClaimReward<'info> {
+    #[account(has_one = vendor_vault)]
     pub registrar: Account<'info, Registrar>,
     #[account(mut, has_one = registrar, has_one = beneficiary)]
     pub member: Box<Account<'info, Member>>,
     pub beneficiary: Signer<'info>,
     #[account(mut, address = member.balances.spt)]
     pub spt: Account<'info, TokenAccount>,
-    #[account(has_one = registrar, has_one = vault)]
+    #[account(has_one = registrar)]
     pub vendor: Account<'info, RewardVendor>,
-    /// CHECK:
     #[account(mut)]
-    pub vault: UncheckedAccount<'info>,
-    /// CHECK:
-    #[account(
-        seeds = [registrar.key().as_ref(), vendor.key().as_ref()],
-        bump = vendor.nonce,
-    )]
-    pub vendor_signer: UncheckedAccount<'info>,
+    pub vendor_vault: Account<'info, TokenAccount>,
     /// CHECK:
     #[account(mut)]
     pub to: UncheckedAccount<'info>,
+    /// CHECK:
+    #[account(seeds = [registrar.key().as_ref()], bump = registrar.nonce)]
+    pub registrar_signer: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
 }
 
@@ -159,7 +162,7 @@ pub struct StartUnstake<'info> {
 pub struct EndUnstake<'info> {
     pub registrar: Account<'info, Registrar>,
     #[account(has_one = registrar, has_one = beneficiary)]
-    pub member: Account<'info, Member>,
+    pub member: Box<Account<'info, Member>>,
     pub beneficiary: Signer<'info>,
     #[account(mut, has_one = registrar, has_one = member, constraint = !pending_withdrawal.burned)]
     pub pending_withdrawal: Account<'info, PendingWithdrawal>,
@@ -192,24 +195,5 @@ pub struct Withdraw<'info> {
     pub member_signer: UncheckedAccount<'info>,
     #[account(mut)]
     pub depositor: Account<'info, TokenAccount>,
-    pub token_program: Program<'info, Token>,
-}
-
-#[derive(Accounts)]
-pub struct ExpireReward<'info> {
-    pub registrar: Account<'info, Registrar>,
-    #[account(mut, signer, has_one = registrar, has_one = vault, has_one = expiry_receiver)]
-    pub vendor: Account<'info, RewardVendor>,
-    #[account(mut)]
-    pub vault: Account<'info, TokenAccount>,
-    /// CHECK:
-    #[account(
-        seeds = [registrar.to_account_info().key.as_ref(), vendor.to_account_info().key.as_ref()],
-        bump = vendor.nonce
-    )]
-    pub vendor_signer: UncheckedAccount<'info>,
-    pub expiry_receiver: Signer<'info>,
-    #[account(mut, constraint = expiry_receiver_token.owner == expiry_receiver.key())]
-    pub expiry_receiver_token: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
