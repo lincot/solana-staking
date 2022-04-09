@@ -7,7 +7,6 @@ import {
   getAccount,
   mintTo,
   TOKEN_PROGRAM_ID,
-  transfer,
 } from "@solana/spl-token";
 import { Registry } from "../target/types/registry";
 import { expect } from "chai";
@@ -36,11 +35,9 @@ describe("registry", () => {
   });
 
   const mintAuthority = new Keypair();
-  const god = new Keypair();
   const beneficiary = new Keypair();
 
   let mint: PublicKey;
-  let godDepositor: PublicKey;
   let beneficiaryDepositor: PublicKey;
 
   it("creates mint", async () => {
@@ -52,34 +49,19 @@ describe("registry", () => {
       2,
     );
 
-    godDepositor = await createAccount(
-      connection,
-      payer,
-      mint,
-      god.publicKey,
-    );
-    await mintTo(
-      connection,
-      payer,
-      mint,
-      godDepositor,
-      mintAuthority,
-      1000000,
-    );
-
     beneficiaryDepositor = await createAccount(
       connection,
       payer,
       mint,
       beneficiary.publicKey,
     );
-    await transfer(
+    await mintTo(
       connection,
       payer,
-      godDepositor,
+      mint,
       beneficiaryDepositor,
-      god,
-      500,
+      mintAuthority,
+      1000,
     );
   });
 
@@ -109,6 +91,14 @@ describe("registry", () => {
 
   it("initializes registry", async () => {
     await createAccount(connection, payer, mint, registrarSigner, vendorVault);
+    await mintTo(
+      connection,
+      payer,
+      mint,
+      vendorVault.publicKey,
+      mintAuthority,
+      1000000,
+    );
 
     await registry.methods.initialize(
       registrarSignerNonce,
@@ -247,17 +237,14 @@ describe("registry", () => {
       new BN(amount),
       0.0,
       expiry,
-      god.publicKey,
     ).accounts({
       registrar: registrar.publicKey,
       rewardQueue: rewardQueue.publicKey,
       poolMint,
       vendor: vendor.publicKey,
       vendorVault: vendorVault.publicKey,
-      depositor: godDepositor,
-      depositorAuthority: god.publicKey,
       tokenProgram: TOKEN_PROGRAM_ID,
-    }).signers([vendor, god]).preInstructions([
+    }).signers([vendor]).preInstructions([
       await registry.account.rewardVendor.createInstruction(vendor),
     ]).rpc();
   });

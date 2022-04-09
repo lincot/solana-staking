@@ -103,9 +103,6 @@ pub struct DropReward<'info> {
     pub vendor: Account<'info, RewardVendor>,
     #[account(mut)]
     pub vendor_vault: Account<'info, TokenAccount>,
-    #[account(mut, constraint = depositor.owner == depositor_authority.key())]
-    pub depositor: Account<'info, TokenAccount>,
-    pub depositor_authority: Signer<'info>,
     pub token_program: Program<'info, Token>,
 }
 

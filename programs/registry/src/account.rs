@@ -89,8 +89,6 @@ pub struct RewardVendor {
     pub reward_event_q_cursor: u32,
     pub start_ts: i64,
     pub expiry_ts: i64,
-    pub expiry_receiver: Pubkey,
-    pub from: Pubkey,
     pub total: u64,
     pub expired: bool,
 }

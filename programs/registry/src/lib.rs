@@ -119,7 +119,6 @@ pub mod registry {
         fixed: u64,
         per_spt: f64,
         expiry_ts: i64,
-        expiry_receiver: Pubkey,
     ) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp;
 
@@ -141,14 +140,6 @@ pub mod registry {
             return err!(RegistryError::InvalidExpiry);
         }
 
-        let cpi_accounts = Transfer {
-            from: ctx.accounts.depositor.to_account_info(),
-            to: ctx.accounts.vendor_vault.to_account_info(),
-            authority: ctx.accounts.depositor_authority.to_account_info(),
-        };
-        let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
-        token::transfer(cpi_ctx, total)?;
-
         let reward_queue = &mut ctx.accounts.reward_queue;
         let cursor = reward_queue.append(Reward {
             vendor: *ctx.accounts.vendor.to_account_info().key,
@@ -162,8 +153,6 @@ pub mod registry {
         vendor.reward_event_q_cursor = cursor;
         vendor.start_ts = ts;
         vendor.expiry_ts = expiry_ts;
-        vendor.expiry_receiver = expiry_receiver;
-        vendor.from = *ctx.accounts.depositor_authority.key;
         vendor.total = total;
         vendor.expired = false;
 
