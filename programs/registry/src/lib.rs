@@ -22,7 +22,7 @@ pub mod registry {
         authority: Pubkey,
         withdrawal_timelock: i64,
         stake_rate: u64,
-        reward_queue_len: u32,
+        reward_amount: u64,
     ) -> Result<()> {
         let registrar = &mut ctx.accounts.registrar;
 
@@ -31,14 +31,9 @@ pub mod registry {
         registrar.mint = mint;
         registrar.pool_mint = ctx.accounts.pool_mint.key();
         registrar.stake_rate = stake_rate;
-        registrar.reward_queue = ctx.accounts.reward_queue.key();
         registrar.withdrawal_timelock = withdrawal_timelock;
         registrar.vendor_vault = ctx.accounts.vendor_vault.key();
-
-        let reward_queue = &mut ctx.accounts.reward_queue;
-        reward_queue
-            .events
-            .resize(reward_queue_len as usize, Default::default());
+        registrar.reward_amount = reward_amount;
 
         Ok(())
     }
@@ -48,7 +43,6 @@ pub mod registry {
         member.registrar = *ctx.accounts.registrar.to_account_info().key;
         member.beneficiary = *ctx.accounts.beneficiary.key;
         member.balances = BalanceSandbox {
-            spt: ctx.accounts.spt.key(),
             available: ctx.accounts.available.key(),
             stake: ctx.accounts.stake.key(),
             pending: ctx.accounts.pending.key(),
@@ -69,7 +63,7 @@ pub mod registry {
         token::transfer(cpi_ctx, amount).map_err(Into::into)
     }
 
-    pub fn stake(ctx: Context<Stake>, spt_amount: u64) -> Result<()> {
+    pub fn stake(ctx: Context<Stake>, amount: u64) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp;
 
         let seeds = &[
@@ -87,26 +81,7 @@ pub mod registry {
             },
             member_signer,
         );
-        let token_amount = spt_amount
-            .checked_mul(ctx.accounts.registrar.stake_rate)
-            .unwrap();
-        token::transfer(cpi_ctx, token_amount)?;
-
-        let seeds = &[
-            ctx.accounts.registrar.to_account_info().key.as_ref(),
-            &[ctx.accounts.registrar.nonce],
-        ];
-        let registrar_signer = &[&seeds[..]];
-        let cpi_ctx = CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
-            token::MintTo {
-                mint: ctx.accounts.pool_mint.to_account_info(),
-                to: ctx.accounts.spt.to_account_info(),
-                authority: ctx.accounts.registrar_signer.to_account_info(),
-            },
-            registrar_signer,
-        );
-        token::mint_to(cpi_ctx, spt_amount)?;
+        token::transfer(cpi_ctx, amount)?;
 
         let member = &mut ctx.accounts.member;
         member.last_stake_ts = ts;
@@ -114,59 +89,8 @@ pub mod registry {
         Ok(())
     }
 
-    pub fn drop_reward(
-        ctx: Context<DropReward>,
-        fixed: u64,
-        per_spt: f64,
-        expiry_ts: i64,
-    ) -> Result<()> {
-        let ts = Clock::get()?.unix_timestamp;
-
-        let per_spt_total = per_spt * ctx.accounts.pool_mint.supply as f64;
-        let per_spt_total = if per_spt_total > u64::MAX as f64 {
-            return err!(RegistryError::RewardTooHigh);
-        } else {
-            per_spt_total as u64
-        };
-
-        let total = fixed
-            .checked_add(per_spt_total)
-            .ok_or(RegistryError::RewardTooHigh)?;
-
-        if total < ctx.accounts.pool_mint.supply {
-            return err!(RegistryError::InsufficientReward);
-        }
-        if ts >= expiry_ts {
-            return err!(RegistryError::InvalidExpiry);
-        }
-
-        let reward_queue = &mut ctx.accounts.reward_queue;
-        let cursor = reward_queue.append(Reward {
-            vendor: *ctx.accounts.vendor.to_account_info().key,
-            ts,
-        })?;
-
-        let vendor = &mut ctx.accounts.vendor;
-        vendor.registrar = *ctx.accounts.registrar.to_account_info().key;
-        vendor.mint = ctx.accounts.vendor_vault.mint;
-        vendor.pool_token_supply = ctx.accounts.pool_mint.supply;
-        vendor.reward_event_q_cursor = cursor;
-        vendor.start_ts = ts;
-        vendor.expiry_ts = expiry_ts;
-        vendor.total = total;
-        vendor.expired = false;
-
-        Ok(())
-    }
-
     pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {
-        let spt_amount = ctx.accounts.spt.amount;
-        let reward_amount = spt_amount
-            .checked_mul(ctx.accounts.vendor.total)
-            .unwrap()
-            .checked_div(ctx.accounts.vendor.pool_token_supply)
-            .unwrap();
-        assert!(reward_amount > 0);
+        let reward_amount = ctx.accounts.registrar.reward_amount;
 
         let seeds = &[
             ctx.accounts.registrar.to_account_info().key.as_ref(),
@@ -184,13 +108,10 @@ pub mod registry {
         );
         token::transfer(cpi_ctx, reward_amount)?;
 
-        let member = &mut ctx.accounts.member;
-        member.rewards_cursor = ctx.accounts.vendor.reward_event_q_cursor + 1;
-
         Ok(())
     }
 
-    pub fn start_unstake(ctx: Context<StartUnstake>, spt_amount: u64) -> Result<()> {
+    pub fn start_unstake(ctx: Context<StartUnstake>, amount: u64) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp;
 
         let seeds = &[
@@ -202,21 +123,6 @@ pub mod registry {
 
         let cpi_ctx = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
-            token::Burn {
-                mint: ctx.accounts.pool_mint.to_account_info(),
-                to: ctx.accounts.spt.to_account_info(),
-                authority: ctx.accounts.member_signer.to_account_info(),
-            },
-            member_signer,
-        );
-        token::burn(cpi_ctx, spt_amount)?;
-
-        let token_amount = spt_amount
-            .checked_mul(ctx.accounts.registrar.stake_rate)
-            .unwrap();
-
-        let cpi_ctx = CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
             token::Transfer {
                 from: ctx.accounts.stake.to_account_info(),
                 to: ctx.accounts.pending.to_account_info(),
@@ -224,14 +130,14 @@ pub mod registry {
             },
             member_signer,
         );
-        token::transfer(cpi_ctx, token_amount)?;
+        token::transfer(cpi_ctx, amount)?;
 
         let pending_withdrawal = &mut ctx.accounts.pending_withdrawal;
         pending_withdrawal.burned = false;
         pending_withdrawal.member = *ctx.accounts.member.to_account_info().key;
         pending_withdrawal.start_ts = ts;
         pending_withdrawal.end_ts = ts + ctx.accounts.registrar.withdrawal_timelock;
-        pending_withdrawal.amount = token_amount;
+        pending_withdrawal.amount = amount;
         pending_withdrawal.pool = ctx.accounts.registrar.pool_mint;
         pending_withdrawal.registrar = *ctx.accounts.registrar.to_account_info().key;
 

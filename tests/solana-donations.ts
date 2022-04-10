@@ -86,7 +86,6 @@ describe("registry", () => {
   });
 
   const registryAuthority = new Keypair();
-  const rewardQueue = new Keypair();
   const vendorVault = new Keypair();
 
   it("initializes registry", async () => {
@@ -106,25 +105,20 @@ describe("registry", () => {
       registryAuthority.publicKey,
       new BN(2),
       new BN(2),
-      170,
+      new BN(170),
     ).accounts({
       registrar: registrar.publicKey,
       poolMint,
-      rewardQueue: rewardQueue.publicKey,
       vendorVault: vendorVault.publicKey,
       registrarSigner,
-    }).signers([registrar, rewardQueue]).preInstructions(
-      await Promise.all([
-        registry.account.registrar.createInstruction(registrar),
-        registry.account.rewardQueue.createInstruction(rewardQueue, 8250),
-      ]),
+    }).signers([registrar]).preInstructions(
+      [await registry.account.registrar.createInstruction(registrar)],
     ).rpc();
   });
 
   const member = new Keypair();
   let memberSigner: PublicKey;
   let memberSignerNonce: number;
-  const spt = new Keypair();
   const available = new Keypair();
   const stake = new Keypair();
   const pending = new Keypair();
@@ -136,7 +130,6 @@ describe("registry", () => {
     );
 
     await Promise.all([
-      createAccount(connection, payer, poolMint, memberSigner, spt),
       createAccount(connection, payer, mint, memberSigner, available),
       createAccount(connection, payer, mint, memberSigner, stake),
       createAccount(connection, payer, mint, memberSigner, pending),
@@ -149,7 +142,6 @@ describe("registry", () => {
       member: member.publicKey,
       beneficiary: beneficiary.publicKey,
       memberSigner,
-      spt: spt.publicKey,
       available: available.publicKey,
       stake: stake.publicKey,
       pending: pending.publicKey,
@@ -183,11 +175,9 @@ describe("registry", () => {
 
     await registry.methods.stake(new BN(amount)).accounts({
       registrar: registrar.publicKey,
-      rewardQueue: rewardQueue.publicKey,
       poolMint,
       member: member.publicKey,
       beneficiary: beneficiary.publicKey,
-      spt: spt.publicKey,
       available: available.publicKey,
       stake: stake.publicKey,
       memberSigner,
@@ -195,8 +185,8 @@ describe("registry", () => {
       tokenProgram: TOKEN_PROGRAM_ID,
     }).signers([beneficiary]).rpc();
 
-    const [availableAccount, stakeAccount, sptAccount] = await Promise.all(
-      [available, stake, spt].map((v) =>
+    const [availableAccount, stakeAccount] = await Promise.all(
+      [available, stake].map((v) =>
         getAccount(
           connection,
           v.publicKey,
@@ -204,49 +194,8 @@ describe("registry", () => {
       ),
     );
 
-    expect(availableAccount.amount).to.eql(BigInt(100));
-    expect(stakeAccount.amount).to.eql(BigInt(20));
-    expect(sptAccount.amount).to.eql(BigInt(10));
-  });
-
-  const claimReward = async (
-    vendor: PublicKey,
-    vendorVault: PublicKey,
-    to: PublicKey,
-  ) => {
-    await registry.methods.claimReward().accounts({
-      to,
-      registrar: registrar.publicKey,
-      member: member.publicKey,
-      beneficiary: beneficiary.publicKey,
-      spt: spt.publicKey,
-      vendor,
-      vendorVault: vendorVault,
-      registrarSigner,
-      tokenProgram: TOKEN_PROGRAM_ID,
-    }).signers([beneficiary]).rpc();
-  };
-
-  const vendor = new Keypair();
-
-  it("drops reward", async () => {
-    const amount = 200;
-    const expiry = new BN(Date.now() / 1000 + 9);
-
-    await registry.methods.dropReward(
-      new BN(amount),
-      0.0,
-      expiry,
-    ).accounts({
-      registrar: registrar.publicKey,
-      rewardQueue: rewardQueue.publicKey,
-      poolMint,
-      vendor: vendor.publicKey,
-      vendorVault: vendorVault.publicKey,
-      tokenProgram: TOKEN_PROGRAM_ID,
-    }).signers([vendor]).preInstructions([
-      await registry.account.rewardVendor.createInstruction(vendor),
-    ]).rpc();
+    expect(availableAccount.amount).to.eql(BigInt(110));
+    expect(stakeAccount.amount).to.eql(BigInt(10));
   });
 
   it("claims reward", async () => {
@@ -255,18 +204,22 @@ describe("registry", () => {
       beneficiaryDepositor,
     )).amount;
 
-    await claimReward(
-      vendor.publicKey,
-      vendorVault.publicKey,
-      beneficiaryDepositor,
-    );
+    await registry.methods.claimReward().accounts({
+      to: beneficiaryDepositor,
+      registrar: registrar.publicKey,
+      member: member.publicKey,
+      beneficiary: beneficiary.publicKey,
+      vendorVault: vendorVault.publicKey,
+      registrarSigner,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    }).signers([beneficiary]).rpc();
 
     const amount_after = (await getAccount(
       connection,
       beneficiaryDepositor,
     )).amount;
 
-    expect(amount_after - amount_before).to.eq(BigInt(200));
+    expect(amount_after - amount_before).to.eq(BigInt(170));
   });
 
   const pendingWithdrawal = new Keypair();
@@ -276,12 +229,10 @@ describe("registry", () => {
 
     await registry.methods.startUnstake(new BN(amount)).accounts({
       registrar: registrar.publicKey,
-      rewardQueue: rewardQueue.publicKey,
       poolMint,
       pendingWithdrawal: pendingWithdrawal.publicKey,
       member: member.publicKey,
       beneficiary: beneficiary.publicKey,
-      spt: spt.publicKey,
       stake: stake.publicKey,
       pending: pending.publicKey,
       memberSigner,
@@ -292,8 +243,8 @@ describe("registry", () => {
       ),
     ]).rpc();
 
-    const [sptAccount, stakeAccount, pendingAccount] = await Promise.all(
-      [spt, stake, pending].map((v) =>
+    const [stakeAccount, pendingAccount] = await Promise.all(
+      [stake, pending].map((v) =>
         getAccount(
           connection,
           v.publicKey,
@@ -302,8 +253,7 @@ describe("registry", () => {
     );
 
     expect(stakeAccount.amount).to.eql(BigInt(0));
-    expect(sptAccount.amount).to.eql(BigInt(0));
-    expect(pendingAccount.amount).to.eql(BigInt(20));
+    expect(pendingAccount.amount).to.eql(BigInt(10));
   });
 
   const endUnstake = async () => {
@@ -340,7 +290,7 @@ describe("registry", () => {
       available.publicKey,
     )).amount;
 
-    expect(amount_after - amount_before).to.eq(BigInt(20));
+    expect(amount_after - amount_before).to.eq(BigInt(10));
   });
 
   it("withdraws", async () => {

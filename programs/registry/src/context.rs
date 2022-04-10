@@ -7,8 +7,6 @@ use anchor_spl::token::{Mint, TokenAccount, Token};
 pub struct Initialize<'info> {
     #[account(zero)]
     pub registrar: Account<'info, Registrar>,
-    #[account(zero)]
-    pub reward_queue: Account<'info, RewardQueue>,
     /// CHECK:
     #[account(seeds = [registrar.key().as_ref()], bump = nonce)]
     pub registrar_signer: UncheckedAccount<'info>,
@@ -24,12 +22,6 @@ pub struct CreateMember<'info> {
     #[account(zero)]
     pub member: Box<Account<'info, Member>>,
     pub beneficiary: Signer<'info>,
-    #[account(
-        mut,
-        constraint = spt.owner == member_signer.key(),
-        constraint = spt.mint == registrar.pool_mint
-    )]
-    pub spt: Account<'info, TokenAccount>,
     #[account(
         mut,
         constraint = available.owner == member_signer.key(),
@@ -68,16 +60,13 @@ pub struct Deposit<'info> {
 
 #[derive(Accounts)]
 pub struct Stake<'info> {
-    #[account(has_one = pool_mint, has_one = reward_queue)]
+    #[account(has_one = pool_mint)]
     pub registrar: Account<'info, Registrar>,
-    pub reward_queue: Account<'info, RewardQueue>,
     #[account(mut)]
     pub pool_mint: Box<Account<'info, Mint>>,
     #[account(mut, has_one = beneficiary, has_one = registrar)]
     pub member: Box<Account<'info, Member>>,
     pub beneficiary: Signer<'info>,
-    #[account(mut, address = member.balances.spt)]
-    pub spt: Account<'info, TokenAccount>,
     #[account(mut, address = member.balances.available)]
     pub available: Account<'info, TokenAccount>,
     #[account(mut, address = member.balances.stake)]
@@ -91,21 +80,6 @@ pub struct Stake<'info> {
     pub token_program: Program<'info, Token>,
 }
 
-
-#[derive(Accounts)]
-pub struct DropReward<'info> {
-    #[account(has_one = reward_queue, has_one = pool_mint, has_one = vendor_vault)]
-    pub registrar: Account<'info, Registrar>,
-    #[account(mut)]
-    pub reward_queue: Account<'info, RewardQueue>,
-    pub pool_mint: Account<'info, Mint>,
-    #[account(zero, signer)]
-    pub vendor: Account<'info, RewardVendor>,
-    #[account(mut)]
-    pub vendor_vault: Account<'info, TokenAccount>,
-    pub token_program: Program<'info, Token>,
-}
-
 #[derive(Accounts)]
 pub struct ClaimReward<'info> {
     #[account(has_one = vendor_vault)]
@@ -113,10 +87,6 @@ pub struct ClaimReward<'info> {
     #[account(mut, has_one = registrar, has_one = beneficiary)]
     pub member: Box<Account<'info, Member>>,
     pub beneficiary: Signer<'info>,
-    #[account(mut, address = member.balances.spt)]
-    pub spt: Account<'info, TokenAccount>,
-    #[account(has_one = registrar)]
-    pub vendor: Account<'info, RewardVendor>,
     #[account(mut)]
     pub vendor_vault: Account<'info, TokenAccount>,
     /// CHECK:
@@ -130,9 +100,7 @@ pub struct ClaimReward<'info> {
 
 #[derive(Accounts)]
 pub struct StartUnstake<'info> {
-    #[account(has_one = reward_queue)]
     pub registrar: Box<Account<'info, Registrar>>,
-    pub reward_queue: Account<'info, RewardQueue>,
     #[account(mut)]
     pub pool_mint: Account<'info, Mint>,
     #[account(zero)]
@@ -140,8 +108,6 @@ pub struct StartUnstake<'info> {
     #[account(has_one = beneficiary, has_one = registrar)]
     pub member: Box<Account<'info, Member>>,
     pub beneficiary: Signer<'info>,
-    #[account(mut, address = member.balances.spt)]
-    pub spt: Account<'info, TokenAccount>,
     #[account(mut, address = member.balances.stake)]
     pub stake: Account<'info, TokenAccount>,
     #[account(mut, address = member.balances.pending)]
