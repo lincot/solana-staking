@@ -299,7 +299,7 @@ describe("registry", () => {
       beneficiary: beneficiary.publicKey,
       available: available.publicKey,
       memberSigner,
-      depositor: beneficiaryDepositor,
+      receiver: beneficiaryDepositor,
       tokenProgram: TOKEN_PROGRAM_ID,
     }).signers([beneficiary]).rpc();
 

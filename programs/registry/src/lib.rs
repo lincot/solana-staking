@@ -208,7 +208,7 @@ pub mod registry {
         let signer = &[&seeds[..]];
         let cpi_accounts = Transfer {
             from: ctx.accounts.available.to_account_info(),
-            to: ctx.accounts.depositor.to_account_info(),
+            to: ctx.accounts.receiver.to_account_info(),
             authority: ctx.accounts.member_signer.to_account_info(),
         };
         let cpi_ctx = CpiContext::new_with_signer(

@@ -21,31 +21,29 @@ pub struct ChangeConfig<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(nonce: u8)]
 pub struct CreateMember<'info> {
     pub registrar: Account<'info, Registrar>,
     #[account(zero)]
     pub member: Box<Account<'info, Member>>,
     pub beneficiary: Signer<'info>,
     #[account(
-        mut,
         constraint = available.owner == member_signer.key(),
         constraint = available.mint == registrar.mint
     )]
     pub available: Account<'info, TokenAccount>,
     #[account(
-        mut,
         constraint = stake.owner == member_signer.key(),
         constraint = stake.mint == registrar.mint 
     )]
     pub stake: Account<'info, TokenAccount>,
     #[account(
-        mut,
         constraint = pending.owner == member_signer.key(),
         constraint = pending.mint == registrar.mint
     )]
     pub pending: Account<'info, TokenAccount>,
     /// CHECK:
-    #[account(seeds = [registrar.key().as_ref(), member.key().as_ref()], bump)]
+    #[account(seeds = [registrar.key().as_ref(), member.key().as_ref()], bump = nonce)]
     pub member_signer: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
 }
@@ -66,7 +64,7 @@ pub struct Deposit<'info> {
 pub struct Stake<'info> {
     #[account(mut)]
     pub registrar: Account<'info, Registrar>,
-    #[account(mut, has_one = beneficiary, has_one = registrar)]
+    #[account(has_one = beneficiary, has_one = registrar)]
     pub member: Box<Account<'info, Member>>,
     pub beneficiary: Signer<'info>,
     #[account(mut, address = member.balances.available)]
@@ -93,9 +91,12 @@ pub struct ClaimReward<'info> {
     pub stake: Account<'info, TokenAccount>,
     #[account(mut)]
     pub vendor_vault: Account<'info, TokenAccount>,
-    /// CHECK:
-    #[account(mut)]
-    pub to: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        constraint = to.mint == vendor_vault.mint,
+        constraint = to.owner == beneficiary.key()
+    )]
+    pub to: Account<'info, TokenAccount>,
     /// CHECK:
     #[account(seeds = [registrar.key().as_ref()], bump = registrar.nonce)]
     pub registrar_signer: UncheckedAccount<'info>,
@@ -115,10 +116,7 @@ pub struct StartUnstake<'info> {
     #[account(mut, address = member.balances.pending)]
     pub pending: Account<'info, TokenAccount>,
     /// CHECK:
-    #[account(
-        seeds = [registrar.key().as_ref(), member.key().as_ref()],
-        bump = member.nonce,
-    )]
+    #[account(seeds = [registrar.key().as_ref(), member.key().as_ref()], bump = member.nonce)]
     pub member_signer: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
 }
@@ -136,10 +134,7 @@ pub struct EndUnstake<'info> {
     #[account(mut, address = member.balances.pending)]
     pub pending: Account<'info, TokenAccount>,
     /// CHECK:
-    #[account(
-        seeds = [registrar.key().as_ref(), member.key().as_ref()],
-        bump = member.nonce,
-    )]
+    #[account(seeds = [registrar.key().as_ref(), member.key().as_ref()], bump = member.nonce)]
     pub member_signer: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
 }
@@ -153,12 +148,9 @@ pub struct Withdraw<'info> {
     #[account(mut, address = member.balances.available)]
     pub available: Account<'info, TokenAccount>,
     /// CHECK:
-    #[account(
-        seeds = [registrar.key().as_ref(), member.key().as_ref()],
-        bump = member.nonce,
-    )]
+    #[account(seeds = [registrar.key().as_ref(), member.key().as_ref()], bump = member.nonce)]
     pub member_signer: UncheckedAccount<'info>,
     #[account(mut)]
-    pub depositor: Account<'info, TokenAccount>,
+    pub receiver: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
