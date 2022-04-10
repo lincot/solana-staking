@@ -68,27 +68,15 @@ describe("registry", () => {
   const registrar = new Keypair();
   let registrarSigner: PublicKey;
   let registrarSignerNonce: number;
-  let poolMint: PublicKey;
+  const vendorVault = new Keypair();
 
-  it("creates pool mint", async () => {
+  it("initializes registry", async () => {
     [registrarSigner, registrarSignerNonce] = await PublicKey
       .findProgramAddress(
         [registrar.publicKey.toBuffer()],
         registry.programId,
       );
-    poolMint = await createMint(
-      connection,
-      payer,
-      registrarSigner,
-      undefined,
-      0,
-    );
-  });
 
-  const registryAuthority = new Keypair();
-  const vendorVault = new Keypair();
-
-  it("initializes registry", async () => {
     await createAccount(connection, payer, mint, registrarSigner, vendorVault);
     await mintTo(
       connection,
@@ -102,18 +90,23 @@ describe("registry", () => {
     await registry.methods.initialize(
       registrarSignerNonce,
       mint,
-      registryAuthority.publicKey,
       new BN(2),
-      new BN(2),
-      new BN(170),
+      new BN(3600),
+      0,
+      new BN(1337),
     ).accounts({
       registrar: registrar.publicKey,
-      poolMint,
-      vendorVault: vendorVault.publicKey,
       registrarSigner,
+      vendorVault: vendorVault.publicKey,
     }).signers([registrar]).preInstructions(
       [await registry.account.registrar.createInstruction(registrar)],
     ).rpc();
+  });
+
+  it("changes config", async () => {
+    await registry.methods.changeConfig(new BN(1700), null).accounts({
+      registrar: registrar.publicKey,
+    }).signers([registrar]).rpc();
   });
 
   const member = new Keypair();
@@ -141,10 +134,10 @@ describe("registry", () => {
       registrar: registrar.publicKey,
       member: member.publicKey,
       beneficiary: beneficiary.publicKey,
-      memberSigner,
       available: available.publicKey,
       stake: stake.publicKey,
       pending: pending.publicKey,
+      memberSigner,
       tokenProgram: TOKEN_PROGRAM_ID,
     }).preInstructions([
       await registry.account.member.createInstruction(member),
@@ -175,7 +168,6 @@ describe("registry", () => {
 
     await registry.methods.stake(new BN(amount)).accounts({
       registrar: registrar.publicKey,
-      poolMint,
       member: member.publicKey,
       beneficiary: beneficiary.publicKey,
       available: available.publicKey,
@@ -205,11 +197,12 @@ describe("registry", () => {
     )).amount;
 
     await registry.methods.claimReward().accounts({
-      to: beneficiaryDepositor,
       registrar: registrar.publicKey,
       member: member.publicKey,
       beneficiary: beneficiary.publicKey,
+      stake: stake.publicKey,
       vendorVault: vendorVault.publicKey,
+      to: beneficiaryDepositor,
       registrarSigner,
       tokenProgram: TOKEN_PROGRAM_ID,
     }).signers([beneficiary]).rpc();
@@ -229,7 +222,6 @@ describe("registry", () => {
 
     await registry.methods.startUnstake(new BN(amount)).accounts({
       registrar: registrar.publicKey,
-      poolMint,
       pendingWithdrawal: pendingWithdrawal.publicKey,
       member: member.publicKey,
       beneficiary: beneficiary.publicKey,

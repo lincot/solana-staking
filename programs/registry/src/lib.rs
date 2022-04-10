@@ -19,21 +19,37 @@ pub mod registry {
         ctx: Context<Initialize>,
         nonce: u8,
         mint: Pubkey,
-        authority: Pubkey,
         withdrawal_timelock: i64,
-        stake_rate: u64,
+        reward_period: i64,
+        reward_type: u8,
         reward_amount: u64,
     ) -> Result<()> {
         let registrar = &mut ctx.accounts.registrar;
 
-        registrar.authority = authority;
         registrar.nonce = nonce;
         registrar.mint = mint;
-        registrar.pool_mint = ctx.accounts.pool_mint.key();
-        registrar.stake_rate = stake_rate;
         registrar.withdrawal_timelock = withdrawal_timelock;
         registrar.vendor_vault = ctx.accounts.vendor_vault.key();
+        registrar.reward_type = reward_type;
         registrar.reward_amount = reward_amount;
+        registrar.reward_period = reward_period;
+
+        Ok(())
+    }
+
+    pub fn change_config(
+        ctx: Context<ChangeConfig>,
+        reward_amount: Option<u64>,
+        reward_period: Option<i64>,
+    ) -> Result<()> {
+        let registrar = &mut ctx.accounts.registrar;
+
+        if let Some(reward_amount) = reward_amount {
+            registrar.reward_amount = reward_amount;
+        }
+        if let Some(reward_period) = reward_period {
+            registrar.reward_period = reward_period;
+        }
 
         Ok(())
     }
@@ -64,8 +80,6 @@ pub mod registry {
     }
 
     pub fn stake(ctx: Context<Stake>, amount: u64) -> Result<()> {
-        let ts = Clock::get()?.unix_timestamp;
-
         let seeds = &[
             ctx.accounts.registrar.to_account_info().key.as_ref(),
             ctx.accounts.member.to_account_info().key.as_ref(),
@@ -83,14 +97,24 @@ pub mod registry {
         );
         token::transfer(cpi_ctx, amount)?;
 
-        let member = &mut ctx.accounts.member;
-        member.last_stake_ts = ts;
+        ctx.accounts.registrar.stakes_sum += amount;
 
         Ok(())
     }
 
     pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {
-        let reward_amount = ctx.accounts.registrar.reward_amount;
+        let ts = Clock::get()?.unix_timestamp;
+
+        if ts - ctx.accounts.member.last_reward_ts < ctx.accounts.registrar.reward_period {
+            return err!(RegistryError::ClaimTimelock);
+        }
+
+        let reward_amount = if ctx.accounts.registrar.reward_type == 0 {
+            ctx.accounts.stake.amount * ctx.accounts.registrar.reward_amount / 100
+        } else {
+            ctx.accounts.stake.amount * ctx.accounts.registrar.reward_amount
+                / ctx.accounts.registrar.stakes_sum
+        };
 
         let seeds = &[
             ctx.accounts.registrar.to_account_info().key.as_ref(),
@@ -138,11 +162,9 @@ pub mod registry {
         pending_withdrawal.start_ts = ts;
         pending_withdrawal.end_ts = ts + ctx.accounts.registrar.withdrawal_timelock;
         pending_withdrawal.amount = amount;
-        pending_withdrawal.pool = ctx.accounts.registrar.pool_mint;
         pending_withdrawal.registrar = *ctx.accounts.registrar.to_account_info().key;
 
-        let member = &mut ctx.accounts.member;
-        member.last_stake_ts = ts;
+        ctx.accounts.registrar.stakes_sum -= amount;
 
         Ok(())
     }

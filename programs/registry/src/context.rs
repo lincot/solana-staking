@@ -1,6 +1,6 @@
 use crate::account::*;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, TokenAccount, Token};
+use anchor_spl::token::{TokenAccount, Token};
 
 #[derive(Accounts)]
 #[instruction(nonce: u8)]
@@ -10,15 +10,19 @@ pub struct Initialize<'info> {
     /// CHECK:
     #[account(seeds = [registrar.key().as_ref()], bump = nonce)]
     pub registrar_signer: UncheckedAccount<'info>,
-    #[account(constraint = pool_mint.decimals == 0)]
-    pub pool_mint: Account<'info, Mint>,
     #[account(constraint = vendor_vault.owner == registrar_signer.key())]
     pub vendor_vault: Account<'info, TokenAccount>,
 }
 
 #[derive(Accounts)]
+pub struct ChangeConfig<'info> {
+    #[account(mut, signer)]
+    pub registrar: Account<'info, Registrar>,
+}
+
+#[derive(Accounts)]
 pub struct CreateMember<'info> {
-    pub registrar: Box<Account<'info, Registrar>>,
+    pub registrar: Account<'info, Registrar>,
     #[account(zero)]
     pub member: Box<Account<'info, Member>>,
     pub beneficiary: Signer<'info>,
@@ -60,10 +64,8 @@ pub struct Deposit<'info> {
 
 #[derive(Accounts)]
 pub struct Stake<'info> {
-    #[account(has_one = pool_mint)]
-    pub registrar: Account<'info, Registrar>,
     #[account(mut)]
-    pub pool_mint: Box<Account<'info, Mint>>,
+    pub registrar: Account<'info, Registrar>,
     #[account(mut, has_one = beneficiary, has_one = registrar)]
     pub member: Box<Account<'info, Member>>,
     pub beneficiary: Signer<'info>,
@@ -87,6 +89,8 @@ pub struct ClaimReward<'info> {
     #[account(mut, has_one = registrar, has_one = beneficiary)]
     pub member: Box<Account<'info, Member>>,
     pub beneficiary: Signer<'info>,
+    #[account(address = member.balances.stake)]
+    pub stake: Account<'info, TokenAccount>,
     #[account(mut)]
     pub vendor_vault: Account<'info, TokenAccount>,
     /// CHECK:
@@ -100,9 +104,7 @@ pub struct ClaimReward<'info> {
 
 #[derive(Accounts)]
 pub struct StartUnstake<'info> {
-    pub registrar: Box<Account<'info, Registrar>>,
-    #[account(mut)]
-    pub pool_mint: Account<'info, Mint>,
+    pub registrar: Account<'info, Registrar>,
     #[account(zero)]
     pub pending_withdrawal: Account<'info, PendingWithdrawal>,
     #[account(has_one = beneficiary, has_one = registrar)]

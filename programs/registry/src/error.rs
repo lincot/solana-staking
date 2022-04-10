@@ -8,6 +8,8 @@ pub enum RegistryError {
     RewardTooHigh,
     #[msg("Reward expiry must be after the current clock timestamp")]
     InvalidExpiry,
+    #[msg("Reward can only be claimed once in reward period")]
+    ClaimTimelock,
     #[msg("The unstake timelock has not yet expired")]
     UnstakeTimelock,
     #[msg("The vendor is not yet eligible for expiry")]
