@@ -1,6 +1,6 @@
 use crate::account::*;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{TokenAccount, Token};
+use anchor_spl::token::{Token, TokenAccount};
 
 #[derive(Accounts)]
 #[instruction(nonce: u8)]
@@ -10,8 +10,8 @@ pub struct Initialize<'info> {
     /// CHECK:
     #[account(seeds = [registrar.key().as_ref()], bump = nonce)]
     pub registrar_signer: UncheckedAccount<'info>,
-    #[account(constraint = vendor_vault.owner == registrar_signer.key())]
-    pub vendor_vault: Account<'info, TokenAccount>,
+    #[account(token::authority = registrar_signer)]
+    pub reward_vault: Account<'info, TokenAccount>,
 }
 
 #[derive(Accounts)]
@@ -27,20 +27,11 @@ pub struct CreateMember<'info> {
     #[account(zero)]
     pub member: Box<Account<'info, Member>>,
     pub beneficiary: Signer<'info>,
-    #[account(
-        constraint = available.owner == member_signer.key(),
-        constraint = available.mint == registrar.mint
-    )]
+    #[account(token::authority = member_signer, token::mint = registrar.mint)]
     pub available: Account<'info, TokenAccount>,
-    #[account(
-        constraint = stake.owner == member_signer.key(),
-        constraint = stake.mint == registrar.mint 
-    )]
+    #[account(token::authority = member_signer, token::mint = registrar.mint)]
     pub stake: Account<'info, TokenAccount>,
-    #[account(
-        constraint = pending.owner == member_signer.key(),
-        constraint = pending.mint == registrar.mint
-    )]
+    #[account(token::authority = member_signer, token::mint = registrar.mint)]
     pub pending: Account<'info, TokenAccount>,
     /// CHECK:
     #[account(seeds = [registrar.key().as_ref(), member.key().as_ref()], bump = nonce)]
@@ -55,7 +46,7 @@ pub struct Deposit<'info> {
     pub beneficiary: Signer<'info>,
     #[account(mut, address = member.balances.available)]
     pub available: Account<'info, TokenAccount>,
-    #[account(mut, constraint = depositor.owner == beneficiary.key())]
+    #[account(mut, token::authority = beneficiary)]
     pub depositor: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
@@ -82,7 +73,7 @@ pub struct Stake<'info> {
 
 #[derive(Accounts)]
 pub struct ClaimReward<'info> {
-    #[account(has_one = vendor_vault)]
+    #[account(has_one = reward_vault)]
     pub registrar: Account<'info, Registrar>,
     #[account(mut, has_one = registrar, has_one = beneficiary)]
     pub member: Box<Account<'info, Member>>,
@@ -90,12 +81,8 @@ pub struct ClaimReward<'info> {
     #[account(address = member.balances.stake)]
     pub stake: Account<'info, TokenAccount>,
     #[account(mut)]
-    pub vendor_vault: Account<'info, TokenAccount>,
-    #[account(
-        mut,
-        constraint = to.mint == vendor_vault.mint,
-        constraint = to.owner == beneficiary.key()
-    )]
+    pub reward_vault: Account<'info, TokenAccount>,
+    #[account(mut, token::authority = beneficiary, token::mint = reward_vault.mint)]
     pub to: Account<'info, TokenAccount>,
     /// CHECK:
     #[account(seeds = [registrar.key().as_ref()], bump = registrar.nonce)]

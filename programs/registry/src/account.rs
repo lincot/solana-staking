@@ -6,7 +6,7 @@ pub struct Registrar {
     pub withdrawal_timelock: i64,
     pub reward_queue: Pubkey,
     pub mint: Pubkey,
-    pub vendor_vault: Pubkey,
+    pub reward_vault: Pubkey,
     pub reward_period: i64,
     pub reward_type: u8,
     /// if reward_type is 0, it's a percent of member's staked tokens

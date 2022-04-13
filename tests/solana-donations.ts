@@ -68,7 +68,7 @@ describe("registry", () => {
   const registrar = new Keypair();
   let registrarSigner: PublicKey;
   let registrarSignerNonce: number;
-  const vendorVault = new Keypair();
+  const rewardVault = new Keypair();
 
   it("initializes registry", async () => {
     [registrarSigner, registrarSignerNonce] = await PublicKey
@@ -77,12 +77,12 @@ describe("registry", () => {
         registry.programId,
       );
 
-    await createAccount(connection, payer, mint, registrarSigner, vendorVault);
+    await createAccount(connection, payer, mint, registrarSigner, rewardVault);
     await mintTo(
       connection,
       payer,
       mint,
-      vendorVault.publicKey,
+      rewardVault.publicKey,
       mintAuthority,
       1000000,
     );
@@ -97,7 +97,7 @@ describe("registry", () => {
     ).accounts({
       registrar: registrar.publicKey,
       registrarSigner,
-      vendorVault: vendorVault.publicKey,
+      rewardVault: rewardVault.publicKey,
     }).signers([registrar]).preInstructions(
       [await registry.account.registrar.createInstruction(registrar)],
     ).rpc();
@@ -201,7 +201,7 @@ describe("registry", () => {
       member: member.publicKey,
       beneficiary: beneficiary.publicKey,
       stake: stake.publicKey,
-      vendorVault: vendorVault.publicKey,
+      rewardVault: rewardVault.publicKey,
       to: beneficiaryDepositor,
       registrarSigner,
       tokenProgram: TOKEN_PROGRAM_ID,

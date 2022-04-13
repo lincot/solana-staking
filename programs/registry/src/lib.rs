@@ -29,7 +29,7 @@ pub mod registry {
         registrar.nonce = nonce;
         registrar.mint = mint;
         registrar.withdrawal_timelock = withdrawal_timelock;
-        registrar.vendor_vault = ctx.accounts.vendor_vault.key();
+        registrar.reward_vault = ctx.accounts.reward_vault.key();
         registrar.reward_type = reward_type;
         registrar.reward_amount = reward_amount;
         registrar.reward_period = reward_period;
@@ -124,7 +124,7 @@ pub mod registry {
         let cpi_ctx = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             token::Transfer {
-                from: ctx.accounts.vendor_vault.to_account_info(),
+                from: ctx.accounts.reward_vault.to_account_info(),
                 to: ctx.accounts.to.to_account_info(),
                 authority: ctx.accounts.registrar_signer.to_account_info(),
             },
