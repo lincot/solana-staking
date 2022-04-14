@@ -16,7 +16,12 @@ pub mod staking_factory {
     use anchor_spl::token::{self, Transfer};
     use std::convert::TryFrom;
 
-    pub fn initialize(_ctx: Context<Initialize>) -> Result<()> {
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+        let factory = &mut ctx.accounts.factory;
+
+        factory.bump = *ctx.bumps.get("factory").unwrap();
+        factory.authority = ctx.accounts.authority.key();
+
         Ok(())
     }
 
@@ -32,8 +37,9 @@ pub mod staking_factory {
         let staking = &mut ctx.accounts.staking;
         let factory = &mut ctx.accounts.factory;
 
+        staking.bump = nonce;
+        staking.authority = ctx.accounts.authority.key();
         staking.factory = factory.key();
-        staking.nonce = nonce;
         staking.mint = mint;
         staking.withdrawal_timelock = withdrawal_timelock;
         staking.reward_vault = ctx.accounts.reward_vault.key();
@@ -134,7 +140,7 @@ pub mod staking_factory {
 
         let seeds = &[
             ctx.accounts.staking.to_account_info().key.as_ref(),
-            &[ctx.accounts.staking.nonce],
+            &[ctx.accounts.staking.bump],
         ];
         let signer = &[&seeds[..]];
         let cpi_ctx = CpiContext::new_with_signer(

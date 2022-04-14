@@ -3,10 +3,12 @@ use num_enum::TryFromPrimitive;
 
 #[account]
 pub struct Factory {
+    pub bump: u8,
+    pub authority: Pubkey,
     pub stakings_count: u16,
 }
 impl Factory {
-    pub const LEN: usize = 2;
+    pub const LEN: usize = 1 + 32 + 2;
 }
 
 #[derive(TryFromPrimitive)]
@@ -18,8 +20,9 @@ pub enum RewardType {
 
 #[account]
 pub struct Staking {
+    pub bump: u8,
+    pub authority: Pubkey,
     pub factory: Pubkey,
-    pub nonce: u8,
     pub withdrawal_timelock: i64,
     pub mint: Pubkey,
     pub reward_vault: Pubkey,
@@ -32,7 +35,7 @@ pub struct Staking {
     pub stakes_sum: u64,
 }
 impl Staking {
-    pub const LEN: usize = 32 + 1 + 8 + 32 + 32 + 8 + 1 + 8 + 8;
+    pub const LEN: usize = 1 + 32 + 32 + 8 + 32 + 32 + 8 + 1 + 8 + 8;
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Default, Debug, Clone, PartialEq)]
