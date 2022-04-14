@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
 #[error_code]
-pub enum RegistryError {
+pub enum StakingError {
     #[msg("Reward vendors must have at least one token unit per pool token")]
     InsufficientReward,
     #[msg("Supplied reward must be less than 2^64")]
@@ -14,4 +14,6 @@ pub enum RegistryError {
     UnstakeTimelock,
     #[msg("The vendor is not yet eligible for expiry")]
     VendorNotYetExpired,
+    #[msg("Invalid staking type")]
+    InvalidType,
 }

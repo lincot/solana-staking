@@ -14,6 +14,7 @@ declare_id!("74Gn5o8MXGWuNgApSz7kkfcdWHGpVAcrgs41ZfW1bHbK");
 pub mod staking_factory {
     use super::*;
     use anchor_spl::token::{self, Transfer};
+    use std::convert::TryFrom;
 
     pub fn initialize(_ctx: Context<Initialize>) -> Result<()> {
         Ok(())
@@ -34,6 +35,9 @@ pub mod staking_factory {
         staking.mint = mint;
         staking.withdrawal_timelock = withdrawal_timelock;
         staking.reward_vault = ctx.accounts.reward_vault.key();
+        if RewardType::try_from(reward_type).is_err() {
+            return err!(StakingError::InvalidType);
+        }
         staking.reward_type = reward_type;
         staking.reward_amount = reward_amount;
         staking.reward_period = reward_period;
@@ -81,7 +85,7 @@ pub mod staking_factory {
                 authority: ctx.accounts.beneficiary.to_account_info(),
             },
         );
-        token::transfer(cpi_ctx, amount).map_err(Into::into)
+        token::transfer(cpi_ctx, amount)
     }
 
     pub fn stake(ctx: Context<Stake>, amount: u64) -> Result<()> {
@@ -111,14 +115,17 @@ pub mod staking_factory {
         let ts = Clock::get()?.unix_timestamp;
 
         if ts - ctx.accounts.member.last_reward_ts < ctx.accounts.staking.reward_period {
-            return err!(RegistryError::ClaimTimelock);
+            return err!(StakingError::ClaimTimelock);
         }
 
-        let reward_amount = if ctx.accounts.staking.reward_type == 0 {
-            ctx.accounts.stake.amount * ctx.accounts.staking.reward_amount / 100
-        } else {
-            ctx.accounts.stake.amount * ctx.accounts.staking.reward_amount
-                / ctx.accounts.staking.stakes_sum
+        let reward_amount = match RewardType::try_from(ctx.accounts.staking.reward_type).unwrap() {
+            RewardType::Absolute => {
+                ctx.accounts.stake.amount * ctx.accounts.staking.reward_amount / 100
+            }
+            RewardType::Relative => {
+                ctx.accounts.stake.amount * ctx.accounts.staking.reward_amount
+                    / ctx.accounts.staking.stakes_sum
+            }
         };
 
         let seeds = &[
@@ -135,9 +142,7 @@ pub mod staking_factory {
             },
             signer,
         );
-        token::transfer(cpi_ctx, reward_amount)?;
-
-        Ok(())
+        token::transfer(cpi_ctx, reward_amount)
     }
 
     pub fn start_unstake(ctx: Context<StartUnstake>, amount: u64) -> Result<()> {
@@ -178,7 +183,7 @@ pub mod staking_factory {
         let ts = Clock::get()?.unix_timestamp;
 
         if ctx.accounts.pending_withdrawal.end_ts > ts {
-            return err!(RegistryError::UnstakeTimelock);
+            return err!(StakingError::UnstakeTimelock);
         }
 
         let seeds = &[
@@ -221,7 +226,6 @@ pub mod staking_factory {
             cpi_accounts,
             signer,
         );
-
-        token::transfer(cpi_ctx, amount).map_err(Into::into)
+        token::transfer(cpi_ctx, amount)
     }
 }

@@ -1,8 +1,16 @@
 use anchor_lang::prelude::*;
+use num_enum::TryFromPrimitive;
 
 #[account]
 pub struct Factory {
     pub stakings: u16,
+}
+
+#[derive(TryFromPrimitive)]
+#[repr(u8)]
+pub enum RewardType {
+    Absolute,
+    Relative,
 }
 
 #[account]
@@ -13,8 +21,9 @@ pub struct Staking {
     pub reward_vault: Pubkey,
     pub reward_period: i64,
     pub reward_type: u8,
-    /// if reward_type is 0, it's a percent of member's staked tokens
-    /// if reward_type is 1, it's an amount which will be shared according to the share of user stake in total stakes
+    /// - if reward_type is Absolute, it's a percent of member's staked tokens
+    /// - if reward_type is Relative, it's an amount which will be shared according
+    /// to the share of user stake in total stakes
     pub reward_amount: u64,
     pub stakes_sum: u64,
 }
