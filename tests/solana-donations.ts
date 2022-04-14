@@ -1,6 +1,12 @@
 import * as anchor from "@project-serum/anchor";
 import { BN, Program } from "@project-serum/anchor";
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  SYSVAR_RENT_PUBKEY,
+} from "@solana/web3.js";
 import {
   createAccount,
   createMint,
@@ -8,7 +14,7 @@ import {
   mintTo,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
-import { Registry } from "../target/types/registry";
+import { StakingFactory } from "../target/types/staking_factory";
 import { expect } from "chai";
 import * as chai from "chai";
 import chaiAsPromised from "chai-as-promised";
@@ -19,10 +25,11 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-describe("registry", () => {
+describe("staking", () => {
   const connection = new Connection("http://localhost:8899", "recent");
-  const registry = anchor.workspace.Registry as Program<Registry>;
+  const stakingFactory = anchor.workspace.Staking as Program<StakingFactory>;
 
+  const beneficiary = new Keypair();
   const payer = new Keypair();
 
   it("airdrops", async () => {
@@ -32,10 +39,16 @@ describe("registry", () => {
         100_000_000,
       ),
     );
+
+    await connection.confirmTransaction(
+      await connection.requestAirdrop(
+        beneficiary.publicKey,
+        100_000_000,
+      ),
+    );
   });
 
   const mintAuthority = new Keypair();
-  const beneficiary = new Keypair();
 
   let mint: PublicKey;
   let beneficiaryDepositor: PublicKey;
@@ -65,19 +78,29 @@ describe("registry", () => {
     );
   });
 
-  const registrar = new Keypair();
-  let registrarSigner: PublicKey;
-  let registrarSignerNonce: number;
+  const factory = new Keypair();
+
+  it("initializes", async () => {
+    await stakingFactory.methods.initialize().accounts({
+      factory: factory.publicKey,
+      payer: payer.publicKey,
+      systemProgram: SystemProgram.programId,
+    }).signers([payer, factory]).rpc();
+  });
+
+  const staking = new Keypair();
+  let stakingSigner: PublicKey;
+  let stakingSignerNonce: number;
   const rewardVault = new Keypair();
 
-  it("initializes registry", async () => {
-    [registrarSigner, registrarSignerNonce] = await PublicKey
+  it("creates staking", async () => {
+    [stakingSigner, stakingSignerNonce] = await PublicKey
       .findProgramAddress(
-        [registrar.publicKey.toBuffer()],
-        registry.programId,
+        [staking.publicKey.toBuffer()],
+        stakingFactory.programId,
       );
 
-    await createAccount(connection, payer, mint, registrarSigner, rewardVault);
+    await createAccount(connection, payer, mint, stakingSigner, rewardVault);
     await mintTo(
       connection,
       payer,
@@ -87,26 +110,26 @@ describe("registry", () => {
       1000000,
     );
 
-    await registry.methods.initialize(
-      registrarSignerNonce,
+    await stakingFactory.methods.newStaking(
+      stakingSignerNonce,
       mint,
       new BN(2),
       new BN(3600),
       0,
       new BN(1337),
     ).accounts({
-      registrar: registrar.publicKey,
-      registrarSigner,
+      staking: staking.publicKey,
+      stakingSigner,
       rewardVault: rewardVault.publicKey,
-    }).signers([registrar]).preInstructions(
-      [await registry.account.registrar.createInstruction(registrar)],
-    ).rpc();
+      payer: payer.publicKey,
+      systemProgram: SystemProgram.programId,
+    }).signers([payer, staking]).rpc();
   });
 
   it("changes config", async () => {
-    await registry.methods.changeConfig(new BN(1700), null).accounts({
-      registrar: registrar.publicKey,
-    }).signers([registrar]).rpc();
+    await stakingFactory.methods.changeConfig(new BN(1700), null).accounts({
+      staking: staking.publicKey,
+    }).signers([staking]).rpc();
   });
 
   const member = new Keypair();
@@ -118,36 +141,31 @@ describe("registry", () => {
 
   it("creates member", async () => {
     [memberSigner, memberSignerNonce] = await PublicKey.findProgramAddress(
-      [registrar.publicKey.toBuffer(), member.publicKey.toBuffer()],
-      registry.programId,
+      [staking.publicKey.toBuffer(), member.publicKey.toBuffer()],
+      stakingFactory.programId,
     );
 
-    await Promise.all([
-      createAccount(connection, payer, mint, memberSigner, available),
-      createAccount(connection, payer, mint, memberSigner, stake),
-      createAccount(connection, payer, mint, memberSigner, pending),
-    ]);
-
-    await registry.methods.createMember(
+    await stakingFactory.methods.createMember(
       memberSignerNonce,
     ).accounts({
-      registrar: registrar.publicKey,
+      staking: staking.publicKey,
+      mint,
       member: member.publicKey,
       beneficiary: beneficiary.publicKey,
       available: available.publicKey,
       stake: stake.publicKey,
       pending: pending.publicKey,
       memberSigner,
+      rent: SYSVAR_RENT_PUBKEY,
       tokenProgram: TOKEN_PROGRAM_ID,
-    }).preInstructions([
-      await registry.account.member.createInstruction(member),
-    ]).signers([beneficiary, member]).rpc();
+      systemProgram: SystemProgram.programId,
+    }).signers([beneficiary]).rpc();
   });
 
   it("deposits", async () => {
     const amount = 120;
 
-    await registry.methods.deposit(new BN(amount)).accounts({
+    await stakingFactory.methods.deposit(new BN(amount)).accounts({
       member: member.publicKey,
       beneficiary: beneficiary.publicKey,
       available: available.publicKey,
@@ -166,14 +184,14 @@ describe("registry", () => {
   it("stakes", async () => {
     const amount = 10;
 
-    await registry.methods.stake(new BN(amount)).accounts({
-      registrar: registrar.publicKey,
+    await stakingFactory.methods.stake(new BN(amount)).accounts({
+      staking: staking.publicKey,
       member: member.publicKey,
       beneficiary: beneficiary.publicKey,
       available: available.publicKey,
       stake: stake.publicKey,
       memberSigner,
-      registrarSigner,
+      stakingSigner,
       tokenProgram: TOKEN_PROGRAM_ID,
     }).signers([beneficiary]).rpc();
 
@@ -196,14 +214,14 @@ describe("registry", () => {
       beneficiaryDepositor,
     )).amount;
 
-    await registry.methods.claimReward().accounts({
-      registrar: registrar.publicKey,
+    await stakingFactory.methods.claimReward().accounts({
+      staking: staking.publicKey,
       member: member.publicKey,
       beneficiary: beneficiary.publicKey,
       stake: stake.publicKey,
       rewardVault: rewardVault.publicKey,
       to: beneficiaryDepositor,
-      registrarSigner,
+      stakingSigner,
       tokenProgram: TOKEN_PROGRAM_ID,
     }).signers([beneficiary]).rpc();
 
@@ -220,8 +238,8 @@ describe("registry", () => {
   it("starts unstake", async () => {
     const amount = 10;
 
-    await registry.methods.startUnstake(new BN(amount)).accounts({
-      registrar: registrar.publicKey,
+    await stakingFactory.methods.startUnstake(new BN(amount)).accounts({
+      staking: staking.publicKey,
       pendingWithdrawal: pendingWithdrawal.publicKey,
       member: member.publicKey,
       beneficiary: beneficiary.publicKey,
@@ -229,11 +247,8 @@ describe("registry", () => {
       pending: pending.publicKey,
       memberSigner,
       tokenProgram: TOKEN_PROGRAM_ID,
-    }).signers([beneficiary, pendingWithdrawal]).preInstructions([
-      await registry.account.pendingWithdrawal.createInstruction(
-        pendingWithdrawal,
-      ),
-    ]).rpc();
+      systemProgram: SystemProgram.programId,
+    }).signers([beneficiary, pendingWithdrawal]).rpc();
 
     const [stakeAccount, pendingAccount] = await Promise.all(
       [stake, pending].map((v) =>
@@ -249,8 +264,8 @@ describe("registry", () => {
   });
 
   const endUnstake = async () => {
-    await registry.methods.endUnstake().accounts({
-      registrar: registrar.publicKey,
+    await stakingFactory.methods.endUnstake().accounts({
+      staking: staking.publicKey,
       member: member.publicKey,
       beneficiary: beneficiary.publicKey,
       pendingWithdrawal: pendingWithdrawal.publicKey,
@@ -293,8 +308,8 @@ describe("registry", () => {
       beneficiaryDepositor,
     )).amount;
 
-    await registry.methods.withdraw(new BN(amount)).accounts({
-      registrar: registrar.publicKey,
+    await stakingFactory.methods.withdraw(new BN(amount)).accounts({
+      staking: staking.publicKey,
       member: member.publicKey,
       beneficiary: beneficiary.publicKey,
       available: available.publicKey,

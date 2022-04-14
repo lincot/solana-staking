@@ -1,7 +1,7 @@
 [features]
 seeds = false
 [programs.localnet]
-registry = "Dbh87pAqWbJP44449LJuLy4vX2jwUpJVfTB8BRSzAwjB"
+staking_factory = "Dbh87pAqWbJP44449LJuLy4vX2jwUpJVfTB8BRSzAwjB"
 
 [registry]
 url = "https://anchor.projectserum.com"
