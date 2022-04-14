@@ -4,7 +4,7 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
-    #[account(init, payer = payer, space = 8 + 2)]
+    #[account(init, payer = payer, space = 8 + Factory::LEN)]
     pub factory: Account<'info, Factory>,
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -13,7 +13,9 @@ pub struct Initialize<'info> {
 
 #[derive(Accounts)]
 #[instruction(nonce: u8)]
-pub struct NewStaking<'info> {
+pub struct CreateStaking<'info> {
+    #[account(mut)]
+    pub factory: Account<'info, Factory>,
     #[account(init, payer = payer, space = 8 + Staking::LEN)]
     pub staking: Account<'info, Staking>,
     /// CHECK:

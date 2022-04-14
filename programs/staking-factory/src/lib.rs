@@ -20,8 +20,8 @@ pub mod staking_factory {
         Ok(())
     }
 
-    pub fn new_staking(
-        ctx: Context<NewStaking>,
+    pub fn create_staking(
+        ctx: Context<CreateStaking>,
         nonce: u8,
         mint: Pubkey,
         withdrawal_timelock: i64,
@@ -30,7 +30,9 @@ pub mod staking_factory {
         reward_amount: u64,
     ) -> Result<()> {
         let staking = &mut ctx.accounts.staking;
+        let factory = &mut ctx.accounts.factory;
 
+        staking.factory = factory.key();
         staking.nonce = nonce;
         staking.mint = mint;
         staking.withdrawal_timelock = withdrawal_timelock;
@@ -41,6 +43,8 @@ pub mod staking_factory {
         staking.reward_type = reward_type;
         staking.reward_amount = reward_amount;
         staking.reward_period = reward_period;
+
+        factory.stakings_count += 1;
 
         Ok(())
     }

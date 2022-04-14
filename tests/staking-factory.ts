@@ -35,19 +35,20 @@ describe("staking", () => {
   const payer = new Keypair();
 
   it("airdrops", async () => {
-    await connection.confirmTransaction(
-      await connection.requestAirdrop(
-        payer.publicKey,
-        100_000_000,
+    await Promise.all([
+      connection.confirmTransaction(
+        await connection.requestAirdrop(
+          payer.publicKey,
+          100_000_000,
+        ),
       ),
-    );
-
-    await connection.confirmTransaction(
-      await connection.requestAirdrop(
-        beneficiary.publicKey,
-        100_000_000,
+      await connection.confirmTransaction(
+        await connection.requestAirdrop(
+          beneficiary.publicKey,
+          100_000_000,
+        ),
       ),
-    );
+    ]);
   });
 
   const mintAuthority = new Keypair();
@@ -112,7 +113,7 @@ describe("staking", () => {
       1000000,
     );
 
-    await stakingFactory.methods.newStaking(
+    await stakingFactory.methods.createStaking(
       stakingSignerNonce,
       mint,
       new BN(2),
@@ -120,6 +121,7 @@ describe("staking", () => {
       0,
       new BN(1337),
     ).accounts({
+      factory: factory.publicKey,
       staking: staking.publicKey,
       stakingSigner,
       rewardVault: rewardVault.publicKey,
