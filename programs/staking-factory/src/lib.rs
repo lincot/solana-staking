@@ -8,7 +8,7 @@ pub mod account;
 pub mod context;
 pub mod error;
 
-declare_id!("Dbh87pAqWbJP44449LJuLy4vX2jwUpJVfTB8BRSzAwjB");
+declare_id!("74Gn5o8MXGWuNgApSz7kkfcdWHGpVAcrgs41ZfW1bHbK");
 
 #[program]
 pub mod staking_factory {

@@ -27,7 +27,9 @@ function sleep(ms: number) {
 
 describe("staking", () => {
   const connection = new Connection("http://localhost:8899", "recent");
-  const stakingFactory = anchor.workspace.Staking as Program<StakingFactory>;
+  const stakingFactory = anchor.workspace.StakingFactory as Program<
+    StakingFactory
+  >;
 
   const beneficiary = new Keypair();
   const payer = new Keypair();
@@ -159,7 +161,7 @@ describe("staking", () => {
       rent: SYSVAR_RENT_PUBKEY,
       tokenProgram: TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
-    }).signers([beneficiary]).rpc();
+    }).signers([beneficiary, member, available, stake, pending]).rpc();
   });
 
   it("deposits", async () => {
