@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use num_enum::TryFromPrimitive;
 
 #[account]
 pub struct Factory {
@@ -11,8 +10,7 @@ impl Factory {
     pub const LEN: usize = 1 + 32 + 2;
 }
 
-#[derive(Copy, Clone, AnchorSerialize, AnchorDeserialize, TryFromPrimitive)]
-#[repr(u8)]
+#[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
 pub enum RewardType {
     Absolute,
     Relative,
@@ -34,7 +32,7 @@ pub struct Staking {
     pub stakes_sum: u64,
 }
 impl Staking {
-    pub const LEN: usize = 1 + 32 + 32 + 2 + 8 + 32 + 32 + 8 + 1 + 8 + 8;
+    pub const LEN: usize = 1 + 32 + 2 + 8 + 32 + 8 + 1 + 8 + 8;
 }
 
 #[account]

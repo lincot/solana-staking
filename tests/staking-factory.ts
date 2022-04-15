@@ -131,7 +131,7 @@ describe("staking", () => {
       mint,
       new BN(2),
       new BN(3600),
-      0,
+      { absolute: {} },
       new BN(1337),
     ).accounts({
       factory,

@@ -14,7 +14,6 @@ declare_id!("74Gn5o8MXGWuNgApSz7kkfcdWHGpVAcrgs41ZfW1bHbK");
 pub mod staking_factory {
     use super::*;
     use anchor_spl::token::{self, Transfer};
-    use std::convert::TryFrom;
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         let factory = &mut ctx.accounts.factory;
@@ -31,7 +30,7 @@ pub mod staking_factory {
         mint: Pubkey,
         withdrawal_timelock: i64,
         reward_period: i64,
-        reward_type: u8,
+        reward_type: RewardType,
         reward_amount: u64,
     ) -> Result<()> {
         let staking = &mut ctx.accounts.staking;
@@ -42,8 +41,7 @@ pub mod staking_factory {
         staking.id = factory.stakings_count;
         staking.mint = mint;
         staking.withdrawal_timelock = withdrawal_timelock;
-        staking.reward_type =
-            RewardType::try_from(reward_type).map_err(|_| StakingError::InvalidType)?;
+        staking.reward_type = reward_type;
         staking.reward_amount = reward_amount;
         staking.reward_period = reward_period;
 
