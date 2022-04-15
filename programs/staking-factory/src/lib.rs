@@ -33,7 +33,7 @@ pub mod staking_factory {
         reward_period: i64,
         reward_type: u8,
         reward_amount: u64,
-    ) -> Result<()> {
+    ) -> Result<u16> {
         let staking = &mut ctx.accounts.staking;
         let factory = &mut ctx.accounts.factory;
 
@@ -52,7 +52,7 @@ pub mod staking_factory {
 
         factory.stakings_count += 1;
 
-        Ok(())
+        Ok(factory.stakings_count - 1)
     }
 
     pub fn change_config(
@@ -121,7 +121,7 @@ pub mod staking_factory {
         Ok(())
     }
 
-    pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {
+    pub fn claim_reward(ctx: Context<ClaimReward>, id: u16) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp;
 
         if ts - ctx.accounts.member.last_reward_ts < ctx.accounts.staking.reward_period {
@@ -139,7 +139,8 @@ pub mod staking_factory {
         };
 
         let seeds = &[
-            ctx.accounts.staking.to_account_info().key.as_ref(),
+            b"staking".as_ref(),
+            &id.to_le_bytes(),
             &[ctx.accounts.staking.bump],
         ];
         let signer = &[&seeds[..]];
@@ -148,7 +149,7 @@ pub mod staking_factory {
             token::Transfer {
                 from: ctx.accounts.reward_vault.to_account_info(),
                 to: ctx.accounts.to.to_account_info(),
-                authority: ctx.accounts.staking_signer.to_account_info(),
+                authority: ctx.accounts.staking.to_account_info(),
             },
             signer,
         );

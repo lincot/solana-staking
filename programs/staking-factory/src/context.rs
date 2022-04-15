@@ -24,10 +24,7 @@ pub struct CreateStaking<'info> {
         space = 8 + Staking::LEN,
     )]
     pub staking: Account<'info, Staking>,
-    /// CHECK:
-    #[account(seeds = [staking.key().as_ref()], bump = nonce)]
-    pub staking_signer: UncheckedAccount<'info>,
-    #[account(token::authority = staking_signer)]
+    #[account(token::authority = staking)]
     pub reward_vault: Account<'info, TokenAccount>,
     #[account(mut)]
     pub authority: Signer<'info>,
@@ -91,9 +88,6 @@ pub struct Stake<'info> {
     /// CHECK:
     #[account(seeds = [staking.key().as_ref(), member.key().as_ref()], bump = member.nonce)]
     pub member_signer: UncheckedAccount<'info>,
-    /// CHECK:
-    #[account(seeds = [staking.key().as_ref()], bump = staking.bump)]
-    pub staking_signer: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
 }
 
@@ -110,9 +104,6 @@ pub struct ClaimReward<'info> {
     pub reward_vault: Account<'info, TokenAccount>,
     #[account(mut, token::authority = beneficiary, token::mint = reward_vault.mint)]
     pub to: Account<'info, TokenAccount>,
-    /// CHECK:
-    #[account(seeds = [staking.key().as_ref()], bump = staking.bump)]
-    pub staking_signer: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
 }
 

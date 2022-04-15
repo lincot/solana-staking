@@ -112,24 +112,18 @@ describe("staking", () => {
 
   const stakingAuthority = new Keypair();
   let staking: PublicKey;
-  let stakingSigner: PublicKey;
-  let stakingSignerNonce: number;
+  let stakingNonce: number;
+  let stakingId: number;
   const rewardVault = new Keypair();
 
   it("creates staking", async () => {
-    [staking] = await PublicKey
+    [staking, stakingNonce] = await PublicKey
       .findProgramAddress(
         [Buffer.from("staking"), new BN(0).toArrayLike(Buffer, "le", 2)],
         stakingFactory.programId,
       );
 
-    [stakingSigner, stakingSignerNonce] = await PublicKey
-      .findProgramAddress(
-        [staking.toBuffer()],
-        stakingFactory.programId,
-      );
-
-    await createAccount(connection, payer, mint, stakingSigner, rewardVault);
+    await createAccount(connection, payer, mint, staking, rewardVault);
     await mintTo(
       connection,
       payer,
@@ -139,8 +133,8 @@ describe("staking", () => {
       1000000,
     );
 
-    await stakingFactory.methods.createStaking(
-      stakingSignerNonce,
+    stakingId = await stakingFactory.methods.createStaking(
+      stakingNonce,
       mint,
       new BN(2),
       new BN(3600),
@@ -149,7 +143,6 @@ describe("staking", () => {
     ).accounts({
       factory,
       staking,
-      stakingSigner,
       rewardVault: rewardVault.publicKey,
       authority: stakingAuthority.publicKey,
       systemProgram: SystemProgram.programId,
@@ -222,7 +215,6 @@ describe("staking", () => {
       available: available.publicKey,
       stake: stake.publicKey,
       memberSigner,
-      stakingSigner,
       tokenProgram: TOKEN_PROGRAM_ID,
     }).signers([beneficiary]).rpc();
 
@@ -245,14 +237,13 @@ describe("staking", () => {
       beneficiaryDepositor,
     )).amount;
 
-    await stakingFactory.methods.claimReward().accounts({
+    await stakingFactory.methods.claimReward(stakingId).accounts({
       staking: staking,
       member: member.publicKey,
       beneficiary: beneficiary.publicKey,
       stake: stake.publicKey,
       rewardVault: rewardVault.publicKey,
       to: beneficiaryDepositor,
-      stakingSigner,
       tokenProgram: TOKEN_PROGRAM_ID,
     }).signers([beneficiary]).rpc();
 
