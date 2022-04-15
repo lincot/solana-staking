@@ -2,12 +2,11 @@ use anchor_lang::prelude::*;
 
 #[account]
 pub struct Factory {
-    pub bump: u8,
     pub authority: Pubkey,
     pub stakings_count: u16,
 }
 impl Factory {
-    pub const LEN: usize = 1 + 32 + 2;
+    pub const LEN: usize = 32 + 2;
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
@@ -37,11 +36,11 @@ impl Staking {
 
 #[account]
 pub struct Member {
+    pub bump: u8,
     pub last_reward_ts: i64,
-    pub nonce: u8,
 }
 impl Member {
-    pub const LEN: usize = 8 + 1;
+    pub const LEN: usize = 1 + 8;
 }
 
 #[account]

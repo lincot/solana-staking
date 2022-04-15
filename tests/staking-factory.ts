@@ -110,11 +110,10 @@ describe("staking", () => {
   });
 
   let staking: PublicKey;
-  let stakingNonce: number;
   let rewardVault: PublicKey;
 
   it("creates staking", async () => {
-    [staking, stakingNonce] = await PublicKey
+    [staking] = await PublicKey
       .findProgramAddress(
         [Buffer.from("staking"), new BN(0).toArrayLike(Buffer, "le", 2)],
         stakingFactory.programId,
@@ -127,7 +126,6 @@ describe("staking", () => {
       );
 
     await stakingFactory.methods.createStaking(
-      stakingNonce,
       mint,
       new BN(2),
       new BN(3600),
@@ -161,13 +159,12 @@ describe("staking", () => {
   });
 
   let member: PublicKey;
-  let memberNonce: number;
   let available: PublicKey;
   let stake: PublicKey;
   let pending: PublicKey;
 
   it("creates member", async () => {
-    [member, memberNonce] = await PublicKey.findProgramAddress(
+    [member] = await PublicKey.findProgramAddress(
       [
         Buffer.from("member"),
         new BN(0).toArrayLike(Buffer, "le", 2),
@@ -198,9 +195,7 @@ describe("staking", () => {
       stakingFactory.programId,
     );
 
-    await stakingFactory.methods.createMember(
-      memberNonce,
-    ).accounts({
+    await stakingFactory.methods.createMember().accounts({
       staking,
       mint,
       member,

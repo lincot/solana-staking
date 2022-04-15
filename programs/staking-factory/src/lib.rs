@@ -18,7 +18,6 @@ pub mod staking_factory {
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         let factory = &mut ctx.accounts.factory;
 
-        factory.bump = *ctx.bumps.get("factory").unwrap();
         factory.authority = ctx.accounts.authority.key();
 
         Ok(())
@@ -26,7 +25,6 @@ pub mod staking_factory {
 
     pub fn create_staking(
         ctx: Context<CreateStaking>,
-        nonce: u8,
         mint: Pubkey,
         withdrawal_timelock: i64,
         reward_period: i64,
@@ -36,7 +34,7 @@ pub mod staking_factory {
         let staking = &mut ctx.accounts.staking;
         let factory = &mut ctx.accounts.factory;
 
-        staking.bump = nonce;
+        staking.bump = *ctx.bumps.get("staking").unwrap();
         staking.authority = ctx.accounts.authority.key();
         staking.id = factory.stakings_count;
         staking.mint = mint;
@@ -67,9 +65,10 @@ pub mod staking_factory {
         Ok(())
     }
 
-    pub fn create_member(ctx: Context<CreateMember>, nonce: u8) -> Result<()> {
+    pub fn create_member(ctx: Context<CreateMember>) -> Result<()> {
         let member = &mut ctx.accounts.member;
-        member.nonce = nonce;
+
+        member.bump = *ctx.bumps.get("member").unwrap();
 
         Ok(())
     }
@@ -91,7 +90,7 @@ pub mod staking_factory {
             b"member".as_ref(),
             &ctx.accounts.staking.id.to_le_bytes(),
             ctx.accounts.beneficiary.to_account_info().key.as_ref(),
-            &[ctx.accounts.member.nonce],
+            &[ctx.accounts.member.bump],
         ];
         let signer = &[&seeds[..]];
         let cpi_ctx = CpiContext::new_with_signer(
@@ -152,7 +151,7 @@ pub mod staking_factory {
             b"member".as_ref(),
             &ctx.accounts.staking.id.to_le_bytes(),
             ctx.accounts.beneficiary.to_account_info().key.as_ref(),
-            &[ctx.accounts.member.nonce],
+            &[ctx.accounts.member.bump],
         ];
         let signer = &[&seeds[..]];
         let cpi_ctx = CpiContext::new_with_signer(
@@ -188,7 +187,7 @@ pub mod staking_factory {
             b"member".as_ref(),
             &ctx.accounts.staking.id.to_le_bytes(),
             ctx.accounts.beneficiary.to_account_info().key.as_ref(),
-            &[ctx.accounts.member.nonce],
+            &[ctx.accounts.member.bump],
         ];
         let signer = &[&seeds[..]];
         let cpi_ctx = CpiContext::new_with_signer(
@@ -213,7 +212,7 @@ pub mod staking_factory {
             b"member".as_ref(),
             &ctx.accounts.staking.id.to_le_bytes(),
             ctx.accounts.beneficiary.to_account_info().key.as_ref(),
-            &[ctx.accounts.member.nonce],
+            &[ctx.accounts.member.bump],
         ];
         let signer = &[&seeds[..]];
         let cpi_accounts = Transfer {

@@ -12,9 +12,8 @@ pub struct Initialize<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(nonce: u8)]
 pub struct CreateStaking<'info> {
-    #[account(mut, seeds = [b"factory"], bump = factory.bump)]
+    #[account(mut, seeds = [b"factory"], bump)]
     pub factory: Account<'info, Factory>,
     #[account(
         init,
@@ -49,7 +48,6 @@ pub struct ChangeConfig<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(nonce: u8)]
 pub struct CreateMember<'info> {
     pub staking: Box<Account<'info, Staking>>,
     #[account(address = staking.mint)]
@@ -99,7 +97,10 @@ pub struct CreateMember<'info> {
 #[derive(Accounts)]
 pub struct Deposit<'info> {
     pub staking: Account<'info, Staking>,
-    #[account(seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()], bump)]
+    #[account(
+        seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()],
+        bump = member.bump,
+    )]
     pub member: Account<'info, Member>,
     pub beneficiary: Signer<'info>,
     #[account(mut, seeds = [b"available", member.key().as_ref()], bump)]
@@ -113,7 +114,10 @@ pub struct Deposit<'info> {
 pub struct Stake<'info> {
     #[account(mut)]
     pub staking: Account<'info, Staking>,
-    #[account(seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()], bump)]
+    #[account(
+        seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()],
+        bump = member.bump,
+    )]
     pub member: Account<'info, Member>,
     pub beneficiary: Signer<'info>,
     #[account(mut, seeds = [b"available", member.key().as_ref()], bump)]
@@ -126,7 +130,10 @@ pub struct Stake<'info> {
 #[derive(Accounts)]
 pub struct ClaimReward<'info> {
     pub staking: Account<'info, Staking>,
-    #[account(seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()], bump)]
+    #[account(
+        seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()],
+        bump = member.bump,
+    )]
     pub member: Account<'info, Member>,
     pub beneficiary: Signer<'info>,
     #[account(seeds = [b"stake", member.key().as_ref()], bump)]
@@ -149,7 +156,10 @@ pub struct StartUnstake<'info> {
         space = 8 + PendingWithdrawal::LEN,
     )]
     pub pending_withdrawal: Account<'info, PendingWithdrawal>,
-    #[account(seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()], bump)]
+    #[account(
+        seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()],
+        bump = member.bump,
+    )]
     pub member: Account<'info, Member>,
     #[account(mut)]
     pub beneficiary: Signer<'info>,
@@ -164,7 +174,10 @@ pub struct StartUnstake<'info> {
 #[derive(Accounts)]
 pub struct EndUnstake<'info> {
     pub staking: Account<'info, Staking>,
-    #[account(seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()], bump)]
+    #[account(
+        seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()],
+        bump = member.bump,
+    )]
     pub member: Account<'info, Member>,
     pub beneficiary: Signer<'info>,
     #[account(
@@ -184,7 +197,10 @@ pub struct EndUnstake<'info> {
 #[derive(Accounts)]
 pub struct Withdraw<'info> {
     pub staking: Account<'info, Staking>,
-    #[account(seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()], bump)]
+    #[account(
+        seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()],
+        bump = member.bump,
+    )]
     pub member: Account<'info, Member>,
     pub beneficiary: Signer<'info>,
     #[account(mut, seeds = [b"available", member.key().as_ref()], bump)]
