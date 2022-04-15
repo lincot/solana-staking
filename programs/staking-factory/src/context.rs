@@ -54,11 +54,32 @@ pub struct CreateMember<'info> {
     pub member: Box<Account<'info, Member>>,
     #[account(mut)]
     pub beneficiary: Signer<'info>,
-    #[account(init, payer = beneficiary, token::authority = member, token::mint = mint)]
+    #[account(
+        init,
+        payer = beneficiary,
+        seeds = [b"available", member.key().as_ref()],
+        bump,
+        token::authority = member,
+        token::mint = mint,
+    )]
     pub available: Account<'info, TokenAccount>,
-    #[account(init, payer = beneficiary, token::authority = member, token::mint = mint)]
+    #[account(
+        init,
+        payer = beneficiary,
+        seeds = [b"stake", member.key().as_ref()],
+        bump,
+        token::authority = member,
+        token::mint = mint,
+    )]
     pub stake: Account<'info, TokenAccount>,
-    #[account(init, payer = beneficiary, token::authority = member, token::mint = mint)]
+    #[account(
+        init,
+        payer = beneficiary,
+        seeds = [b"pending", member.key().as_ref()],
+        bump,
+        token::authority = member,
+        token::mint = mint,
+    )]
     pub pending: Account<'info, TokenAccount>,
     pub rent: Sysvar<'info, Rent>,
     pub token_program: Program<'info, Token>,
