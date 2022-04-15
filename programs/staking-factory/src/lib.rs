@@ -39,15 +39,11 @@ pub mod staking_factory {
 
         staking.bump = nonce;
         staking.authority = ctx.accounts.authority.key();
-        staking.factory = factory.key();
         staking.id = factory.stakings_count;
         staking.mint = mint;
         staking.withdrawal_timelock = withdrawal_timelock;
-        staking.reward_vault = ctx.accounts.reward_vault.key();
-        if RewardType::try_from(reward_type).is_err() {
-            return err!(StakingError::InvalidType);
-        }
-        staking.reward_type = reward_type;
+        staking.reward_type =
+            RewardType::try_from(reward_type).map_err(|_| StakingError::InvalidType)?;
         staking.reward_amount = reward_amount;
         staking.reward_period = reward_period;
 
@@ -75,8 +71,6 @@ pub mod staking_factory {
 
     pub fn create_member(ctx: Context<CreateMember>, nonce: u8) -> Result<()> {
         let member = &mut ctx.accounts.member;
-        member.staking = ctx.accounts.staking.key();
-        member.beneficiary = *ctx.accounts.beneficiary.key;
         member.nonce = nonce;
 
         Ok(())
@@ -125,7 +119,7 @@ pub mod staking_factory {
             return err!(StakingError::ClaimTimelock);
         }
 
-        let reward_amount = match RewardType::try_from(ctx.accounts.staking.reward_type).unwrap() {
+        let reward_amount = match ctx.accounts.staking.reward_type {
             RewardType::Absolute => {
                 ctx.accounts.stake.amount * ctx.accounts.staking.reward_amount / 100
             }
@@ -176,11 +170,9 @@ pub mod staking_factory {
 
         let pending_withdrawal = &mut ctx.accounts.pending_withdrawal;
         pending_withdrawal.burned = false;
-        pending_withdrawal.member = *ctx.accounts.member.to_account_info().key;
         pending_withdrawal.start_ts = ts;
         pending_withdrawal.end_ts = ts + ctx.accounts.staking.withdrawal_timelock;
         pending_withdrawal.amount = amount;
-        pending_withdrawal.staking = *ctx.accounts.staking.to_account_info().key;
 
         ctx.accounts.staking.stakes_sum -= amount;
 

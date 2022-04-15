@@ -11,7 +11,7 @@ impl Factory {
     pub const LEN: usize = 1 + 32 + 2;
 }
 
-#[derive(TryFromPrimitive)]
+#[derive(Copy, Clone, AnchorSerialize, AnchorDeserialize, TryFromPrimitive)]
 #[repr(u8)]
 pub enum RewardType {
     Absolute,
@@ -22,13 +22,11 @@ pub enum RewardType {
 pub struct Staking {
     pub bump: u8,
     pub authority: Pubkey,
-    pub factory: Pubkey,
     pub id: u16,
     pub withdrawal_timelock: i64,
     pub mint: Pubkey,
-    pub reward_vault: Pubkey,
     pub reward_period: i64,
-    pub reward_type: u8,
+    pub reward_type: RewardType,
     /// - if reward_type is Absolute, it's a percent of member's staked tokens
     /// - if reward_type is Relative, it's an amount which will be shared according
     /// to the share of user stake in total stakes
@@ -41,25 +39,20 @@ impl Staking {
 
 #[account]
 pub struct Member {
-    pub staking: Pubkey,
-    pub beneficiary: Pubkey,
-    pub metadata: Pubkey,
     pub last_reward_ts: i64,
     pub nonce: u8,
 }
 impl Member {
-    pub const LEN: usize = 32 + 32 + 32 + 8 + 1;
+    pub const LEN: usize = 8 + 1;
 }
 
 #[account]
 pub struct PendingWithdrawal {
-    pub staking: Pubkey,
-    pub member: Pubkey,
     pub burned: bool,
     pub start_ts: i64,
     pub end_ts: i64,
     pub amount: u64,
 }
 impl PendingWithdrawal {
-    pub const LEN: usize = 32 + 32 + 1 + 8 + 8 + 8;
+    pub const LEN: usize = 1 + 8 + 8 + 8;
 }

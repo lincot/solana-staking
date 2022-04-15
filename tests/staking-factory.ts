@@ -218,6 +218,7 @@ describe("staking", () => {
     const amount = 120;
 
     await stakingFactory.methods.deposit(new BN(amount)).accounts({
+      staking,
       member,
       beneficiary: beneficiary.publicKey,
       available,
