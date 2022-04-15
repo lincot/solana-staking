@@ -61,7 +61,7 @@ pub struct CreateMember<'info> {
         bump,
         space = 8 + Member::LEN,
     )]
-    pub member: Box<Account<'info, Member>>,
+    pub member: Account<'info, Member>,
     #[account(mut)]
     pub beneficiary: Signer<'info>,
     #[account(
@@ -101,7 +101,7 @@ pub struct Deposit<'info> {
     #[account(has_one = beneficiary)]
     pub member: Account<'info, Member>,
     pub beneficiary: Signer<'info>,
-    #[account(mut, address = member.balances.available)]
+    #[account(mut, seeds = [b"available", member.key().as_ref()], bump)]
     pub available: Account<'info, TokenAccount>,
     #[account(mut, token::authority = beneficiary)]
     pub depositor: Account<'info, TokenAccount>,
@@ -113,11 +113,11 @@ pub struct Stake<'info> {
     #[account(mut)]
     pub staking: Account<'info, Staking>,
     #[account(has_one = beneficiary, has_one = staking)]
-    pub member: Box<Account<'info, Member>>,
+    pub member: Account<'info, Member>,
     pub beneficiary: Signer<'info>,
-    #[account(mut, address = member.balances.available)]
+    #[account(mut, seeds = [b"available", member.key().as_ref()], bump)]
     pub available: Account<'info, TokenAccount>,
-    #[account(mut, address = member.balances.stake)]
+    #[account(mut, seeds = [b"stake", member.key().as_ref()], bump)]
     pub stake: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
@@ -127,9 +127,9 @@ pub struct ClaimReward<'info> {
     #[account(has_one = reward_vault)]
     pub staking: Account<'info, Staking>,
     #[account(mut, has_one = staking, has_one = beneficiary)]
-    pub member: Box<Account<'info, Member>>,
+    pub member: Account<'info, Member>,
     pub beneficiary: Signer<'info>,
-    #[account(address = member.balances.stake)]
+    #[account(seeds = [b"stake", member.key().as_ref()], bump)]
     pub stake: Account<'info, TokenAccount>,
     #[account(mut)]
     pub reward_vault: Account<'info, TokenAccount>,
@@ -150,12 +150,12 @@ pub struct StartUnstake<'info> {
     )]
     pub pending_withdrawal: Account<'info, PendingWithdrawal>,
     #[account(has_one = beneficiary, has_one = staking)]
-    pub member: Box<Account<'info, Member>>,
+    pub member: Account<'info, Member>,
     #[account(mut)]
     pub beneficiary: Signer<'info>,
-    #[account(mut, address = member.balances.stake)]
+    #[account(mut, seeds = [b"stake", member.key().as_ref()], bump)]
     pub stake: Account<'info, TokenAccount>,
-    #[account(mut, address = member.balances.pending)]
+    #[account(mut, seeds = [b"pending", member.key().as_ref()], bump)]
     pub pending: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
@@ -165,13 +165,13 @@ pub struct StartUnstake<'info> {
 pub struct EndUnstake<'info> {
     pub staking: Account<'info, Staking>,
     #[account(has_one = staking, has_one = beneficiary)]
-    pub member: Box<Account<'info, Member>>,
+    pub member: Account<'info, Member>,
     pub beneficiary: Signer<'info>,
     #[account(mut, has_one = staking, has_one = member, constraint = !pending_withdrawal.burned)]
     pub pending_withdrawal: Account<'info, PendingWithdrawal>,
-    #[account(mut, address = member.balances.available)]
+    #[account(mut, seeds = [b"available", member.key().as_ref()], bump)]
     pub available: Account<'info, TokenAccount>,
-    #[account(mut, address = member.balances.pending)]
+    #[account(mut, seeds = [b"pending", member.key().as_ref()], bump)]
     pub pending: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
@@ -182,7 +182,7 @@ pub struct Withdraw<'info> {
     #[account(has_one = staking, has_one = beneficiary)]
     pub member: Account<'info, Member>,
     pub beneficiary: Signer<'info>,
-    #[account(mut, address = member.balances.available)]
+    #[account(mut, seeds = [b"available", member.key().as_ref()], bump)]
     pub available: Account<'info, TokenAccount>,
     #[account(mut)]
     pub receiver: Account<'info, TokenAccount>,

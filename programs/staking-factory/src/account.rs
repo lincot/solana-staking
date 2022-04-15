@@ -39,27 +39,16 @@ impl Staking {
     pub const LEN: usize = 1 + 32 + 32 + 2 + 8 + 32 + 32 + 8 + 1 + 8 + 8;
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Default, Debug, Clone, PartialEq)]
-pub struct Balances {
-    pub available: Pubkey,
-    pub stake: Pubkey,
-    pub pending: Pubkey,
-}
-impl Balances {
-    pub const LEN: usize = 3 * 32;
-}
-
 #[account]
 pub struct Member {
     pub staking: Pubkey,
     pub beneficiary: Pubkey,
     pub metadata: Pubkey,
-    pub balances: Balances,
     pub last_reward_ts: i64,
     pub nonce: u8,
 }
 impl Member {
-    pub const LEN: usize = 32 + 32 + 32 + Balances::LEN + 8 + 1;
+    pub const LEN: usize = 32 + 32 + 32 + 8 + 1;
 }
 
 #[account]

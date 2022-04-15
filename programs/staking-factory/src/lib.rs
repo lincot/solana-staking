@@ -77,11 +77,6 @@ pub mod staking_factory {
         let member = &mut ctx.accounts.member;
         member.staking = ctx.accounts.staking.key();
         member.beneficiary = *ctx.accounts.beneficiary.key;
-        member.balances = Balances {
-            available: ctx.accounts.available.key(),
-            stake: ctx.accounts.stake.key(),
-            pending: ctx.accounts.pending.key(),
-        };
         member.nonce = nonce;
 
         Ok(())
