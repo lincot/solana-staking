@@ -111,7 +111,7 @@ describe("staking", () => {
 
   let staking: PublicKey;
   let stakingNonce: number;
-  const rewardVault = new Keypair();
+  let rewardVault: PublicKey;
 
   it("creates staking", async () => {
     [staking, stakingNonce] = await PublicKey
@@ -120,21 +120,11 @@ describe("staking", () => {
         stakingFactory.programId,
       );
 
-    await createAccount(
-      connection,
-      stakingAuthority,
-      mint,
-      staking,
-      rewardVault,
-    );
-    await mintTo(
-      connection,
-      stakingAuthority,
-      mint,
-      rewardVault.publicKey,
-      mintAuthority,
-      1000000,
-    );
+    [rewardVault] = await PublicKey
+      .findProgramAddress(
+        [Buffer.from("reward_vault"), staking.toBuffer()],
+        stakingFactory.programId,
+      );
 
     await stakingFactory.methods.createStaking(
       stakingNonce,
@@ -146,10 +136,21 @@ describe("staking", () => {
     ).accounts({
       factory,
       staking,
-      rewardVault: rewardVault.publicKey,
+      rewardVault,
+      rewardMint: mint,
       authority: stakingAuthority.publicKey,
+      rent: SYSVAR_RENT_PUBKEY,
       systemProgram: SystemProgram.programId,
     }).signers([stakingAuthority]).rpc();
+
+    await mintTo(
+      connection,
+      stakingAuthority,
+      mint,
+      rewardVault,
+      mintAuthority,
+      1000000,
+    );
   });
 
   it("changes config", async () => {
@@ -182,7 +183,6 @@ describe("staking", () => {
       ],
       stakingFactory.programId,
     );
-
     [stake] = await PublicKey.findProgramAddress(
       [
         Buffer.from("stake"),
@@ -190,7 +190,6 @@ describe("staking", () => {
       ],
       stakingFactory.programId,
     );
-
     [pending] = await PublicKey.findProgramAddress(
       [
         Buffer.from("pending"),
@@ -270,7 +269,7 @@ describe("staking", () => {
       member,
       beneficiary: beneficiary.publicKey,
       stake,
-      rewardVault: rewardVault.publicKey,
+      rewardVault,
       to: beneficiaryDepositor,
       tokenProgram: TOKEN_PROGRAM_ID,
     }).signers([beneficiary]).rpc();
@@ -283,21 +282,27 @@ describe("staking", () => {
     expect(amount_after - amount_before).to.eq(BigInt(170));
   });
 
-  const pendingWithdrawal = new Keypair();
+  let pendingWithdrawal: PublicKey;
 
   it("starts unstake", async () => {
     const amount = 10;
 
+    [pendingWithdrawal] = await PublicKey
+      .findProgramAddress(
+        [Buffer.from("pending_withdrawal"), member.toBuffer()],
+        stakingFactory.programId,
+      );
+
     await stakingFactory.methods.startUnstake(new BN(amount)).accounts({
       staking,
-      pendingWithdrawal: pendingWithdrawal.publicKey,
+      pendingWithdrawal,
       member,
       beneficiary: beneficiary.publicKey,
       stake,
       pending,
       tokenProgram: TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
-    }).signers([beneficiary, pendingWithdrawal]).rpc();
+    }).signers([beneficiary]).rpc();
 
     const [stakeAccount, pendingAccount] = await Promise.all(
       [stake, pending].map((v) =>
@@ -317,7 +322,7 @@ describe("staking", () => {
       staking,
       member,
       beneficiary: beneficiary.publicKey,
-      pendingWithdrawal: pendingWithdrawal.publicKey,
+      pendingWithdrawal,
       available,
       pending,
       tokenProgram: TOKEN_PROGRAM_ID,

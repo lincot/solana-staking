@@ -24,10 +24,20 @@ pub struct CreateStaking<'info> {
         space = 8 + Staking::LEN,
     )]
     pub staking: Account<'info, Staking>,
-    #[account(token::authority = staking)]
+    pub reward_mint: Account<'info, Mint>,
+    #[account(
+        init,
+        payer = authority,
+        seeds = [b"reward_vault", staking.key().as_ref()],
+        bump,
+        token::authority = staking,
+        token::mint = reward_mint,
+    )]
     pub reward_vault: Account<'info, TokenAccount>,
     #[account(mut)]
     pub authority: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
 
@@ -131,7 +141,13 @@ pub struct ClaimReward<'info> {
 #[derive(Accounts)]
 pub struct StartUnstake<'info> {
     pub staking: Account<'info, Staking>,
-    #[account(init, payer = beneficiary, space = 8 + PendingWithdrawal::LEN)]
+    #[account(
+        init_if_needed,
+        payer = beneficiary,
+        seeds = [b"pending_withdrawal", member.key().as_ref()],
+        bump,
+        space = 8 + PendingWithdrawal::LEN,
+    )]
     pub pending_withdrawal: Account<'info, PendingWithdrawal>,
     #[account(has_one = beneficiary, has_one = staking)]
     pub member: Box<Account<'info, Member>>,
