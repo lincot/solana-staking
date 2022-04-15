@@ -8,9 +8,9 @@ import {
   SYSVAR_RENT_PUBKEY,
 } from "@solana/web3.js";
 import {
-  createAccount,
   createMint,
   getAccount,
+  getOrCreateAssociatedTokenAccount,
   mintTo,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
@@ -77,12 +77,12 @@ describe("staking", () => {
       2,
     );
 
-    beneficiaryDepositor = await createAccount(
+    beneficiaryDepositor = (await getOrCreateAssociatedTokenAccount(
       connection,
       beneficiary,
       mint,
       beneficiary.publicKey,
-    );
+    )).address;
     await mintTo(
       connection,
       beneficiary,

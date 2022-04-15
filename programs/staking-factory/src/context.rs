@@ -131,11 +131,7 @@ pub struct ClaimReward<'info> {
     pub beneficiary: Signer<'info>,
     #[account(seeds = [b"stake", member.key().as_ref()], bump)]
     pub stake: Account<'info, TokenAccount>,
-    #[account(
-        mut,
-        seeds = [b"reward_vault", staking.key().as_ref()],
-        bump,
-    )]
+    #[account(mut, seeds = [b"reward_vault", staking.key().as_ref()], bump)]
     pub reward_vault: Account<'info, TokenAccount>,
     #[account(mut, token::authority = beneficiary, token::mint = reward_vault.mint)]
     pub to: Account<'info, TokenAccount>,
