@@ -113,7 +113,6 @@ describe("staking", () => {
   const stakingAuthority = new Keypair();
   let staking: PublicKey;
   let stakingNonce: number;
-  let stakingId: number;
   const rewardVault = new Keypair();
 
   it("creates staking", async () => {
@@ -133,7 +132,7 @@ describe("staking", () => {
       1000000,
     );
 
-    stakingId = await stakingFactory.methods.createStaking(
+    await stakingFactory.methods.createStaking(
       stakingNonce,
       mint,
       new BN(2),
@@ -151,46 +150,48 @@ describe("staking", () => {
 
   it("changes config", async () => {
     await stakingFactory.methods.changeConfig(new BN(1700), null).accounts({
-      staking: staking,
+      staking,
       authority: stakingAuthority.publicKey,
     }).signers([stakingAuthority]).rpc();
   });
 
-  const member = new Keypair();
-  let memberSigner: PublicKey;
-  let memberSignerNonce: number;
+  let member: PublicKey;
+  let memberNonce: number;
   const available = new Keypair();
   const stake = new Keypair();
   const pending = new Keypair();
 
   it("creates member", async () => {
-    [memberSigner, memberSignerNonce] = await PublicKey.findProgramAddress(
-      [staking.toBuffer(), member.publicKey.toBuffer()],
+    [member, memberNonce] = await PublicKey.findProgramAddress(
+      [
+        Buffer.from("member"),
+        new BN(0).toArrayLike(Buffer, "le", 2),
+        beneficiary.publicKey.toBuffer(),
+      ],
       stakingFactory.programId,
     );
 
     await stakingFactory.methods.createMember(
-      memberSignerNonce,
+      memberNonce,
     ).accounts({
-      staking: staking,
+      staking,
       mint,
-      member: member.publicKey,
+      member,
       beneficiary: beneficiary.publicKey,
       available: available.publicKey,
       stake: stake.publicKey,
       pending: pending.publicKey,
-      memberSigner,
       rent: SYSVAR_RENT_PUBKEY,
       tokenProgram: TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
-    }).signers([beneficiary, member, available, stake, pending]).rpc();
+    }).signers([beneficiary, available, stake, pending]).rpc();
   });
 
   it("deposits", async () => {
     const amount = 120;
 
     await stakingFactory.methods.deposit(new BN(amount)).accounts({
-      member: member.publicKey,
+      member,
       beneficiary: beneficiary.publicKey,
       available: available.publicKey,
       depositor: beneficiaryDepositor,
@@ -209,12 +210,11 @@ describe("staking", () => {
     const amount = 10;
 
     await stakingFactory.methods.stake(new BN(amount)).accounts({
-      staking: staking,
-      member: member.publicKey,
+      staking,
+      member,
       beneficiary: beneficiary.publicKey,
       available: available.publicKey,
       stake: stake.publicKey,
-      memberSigner,
       tokenProgram: TOKEN_PROGRAM_ID,
     }).signers([beneficiary]).rpc();
 
@@ -237,9 +237,9 @@ describe("staking", () => {
       beneficiaryDepositor,
     )).amount;
 
-    await stakingFactory.methods.claimReward(stakingId).accounts({
-      staking: staking,
-      member: member.publicKey,
+    await stakingFactory.methods.claimReward().accounts({
+      staking,
+      member,
       beneficiary: beneficiary.publicKey,
       stake: stake.publicKey,
       rewardVault: rewardVault.publicKey,
@@ -261,13 +261,12 @@ describe("staking", () => {
     const amount = 10;
 
     await stakingFactory.methods.startUnstake(new BN(amount)).accounts({
-      staking: staking,
+      staking,
       pendingWithdrawal: pendingWithdrawal.publicKey,
-      member: member.publicKey,
+      member,
       beneficiary: beneficiary.publicKey,
       stake: stake.publicKey,
       pending: pending.publicKey,
-      memberSigner,
       tokenProgram: TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
     }).signers([beneficiary, pendingWithdrawal]).rpc();
@@ -287,13 +286,12 @@ describe("staking", () => {
 
   const endUnstake = async () => {
     await stakingFactory.methods.endUnstake().accounts({
-      staking: staking,
-      member: member.publicKey,
+      staking,
+      member,
       beneficiary: beneficiary.publicKey,
       pendingWithdrawal: pendingWithdrawal.publicKey,
       available: available.publicKey,
       pending: pending.publicKey,
-      memberSigner,
       tokenProgram: TOKEN_PROGRAM_ID,
     }).signers([beneficiary]).rpc();
   };
@@ -331,11 +329,10 @@ describe("staking", () => {
     )).amount;
 
     await stakingFactory.methods.withdraw(new BN(amount)).accounts({
-      staking: staking,
-      member: member.publicKey,
+      staking,
+      member,
       beneficiary: beneficiary.publicKey,
       available: available.publicKey,
-      memberSigner,
       receiver: beneficiaryDepositor,
       tokenProgram: TOKEN_PROGRAM_ID,
     }).signers([beneficiary]).rpc();

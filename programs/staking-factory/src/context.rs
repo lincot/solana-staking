@@ -44,19 +44,22 @@ pub struct CreateMember<'info> {
     pub staking: Box<Account<'info, Staking>>,
     #[account(address = staking.mint)]
     pub mint: Account<'info, Mint>,
-    #[account(init, payer = beneficiary, space = 8 + Member::LEN)]
+    #[account(
+        init,
+        payer = beneficiary,
+        seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()],
+        bump,
+        space = 8 + Member::LEN,
+    )]
     pub member: Box<Account<'info, Member>>,
     #[account(mut)]
     pub beneficiary: Signer<'info>,
-    #[account(init, payer = beneficiary, token::authority = member_signer, token::mint = mint)]
+    #[account(init, payer = beneficiary, token::authority = member, token::mint = mint)]
     pub available: Account<'info, TokenAccount>,
-    #[account(init, payer = beneficiary, token::authority = member_signer, token::mint = mint)]
+    #[account(init, payer = beneficiary, token::authority = member, token::mint = mint)]
     pub stake: Account<'info, TokenAccount>,
-    #[account(init, payer = beneficiary, token::authority = member_signer, token::mint = mint)]
+    #[account(init, payer = beneficiary, token::authority = member, token::mint = mint)]
     pub pending: Account<'info, TokenAccount>,
-    /// CHECK:
-    #[account(seeds = [staking.key().as_ref(), member.key().as_ref()], bump = nonce)]
-    pub member_signer: UncheckedAccount<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
@@ -85,9 +88,6 @@ pub struct Stake<'info> {
     pub available: Account<'info, TokenAccount>,
     #[account(mut, address = member.balances.stake)]
     pub stake: Account<'info, TokenAccount>,
-    /// CHECK:
-    #[account(seeds = [staking.key().as_ref(), member.key().as_ref()], bump = member.nonce)]
-    pub member_signer: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
 }
 
@@ -120,9 +120,6 @@ pub struct StartUnstake<'info> {
     pub stake: Account<'info, TokenAccount>,
     #[account(mut, address = member.balances.pending)]
     pub pending: Account<'info, TokenAccount>,
-    /// CHECK:
-    #[account(seeds = [staking.key().as_ref(), member.key().as_ref()], bump = member.nonce)]
-    pub member_signer: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
@@ -139,9 +136,6 @@ pub struct EndUnstake<'info> {
     pub available: Account<'info, TokenAccount>,
     #[account(mut, address = member.balances.pending)]
     pub pending: Account<'info, TokenAccount>,
-    /// CHECK:
-    #[account(seeds = [staking.key().as_ref(), member.key().as_ref()], bump = member.nonce)]
-    pub member_signer: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
 }
 
@@ -153,9 +147,6 @@ pub struct Withdraw<'info> {
     pub beneficiary: Signer<'info>,
     #[account(mut, address = member.balances.available)]
     pub available: Account<'info, TokenAccount>,
-    /// CHECK:
-    #[account(seeds = [staking.key().as_ref(), member.key().as_ref()], bump = member.nonce)]
-    pub member_signer: UncheckedAccount<'info>,
     #[account(mut)]
     pub receiver: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,

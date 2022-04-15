@@ -33,13 +33,14 @@ pub mod staking_factory {
         reward_period: i64,
         reward_type: u8,
         reward_amount: u64,
-    ) -> Result<u16> {
+    ) -> Result<()> {
         let staking = &mut ctx.accounts.staking;
         let factory = &mut ctx.accounts.factory;
 
         staking.bump = nonce;
         staking.authority = ctx.accounts.authority.key();
         staking.factory = factory.key();
+        staking.id = factory.stakings_count;
         staking.mint = mint;
         staking.withdrawal_timelock = withdrawal_timelock;
         staking.reward_vault = ctx.accounts.reward_vault.key();
@@ -52,7 +53,7 @@ pub mod staking_factory {
 
         factory.stakings_count += 1;
 
-        Ok(factory.stakings_count - 1)
+        Ok(())
     }
 
     pub fn change_config(
@@ -100,19 +101,20 @@ pub mod staking_factory {
 
     pub fn stake(ctx: Context<Stake>, amount: u64) -> Result<()> {
         let seeds = &[
-            ctx.accounts.staking.to_account_info().key.as_ref(),
-            ctx.accounts.member.to_account_info().key.as_ref(),
+            b"member".as_ref(),
+            &ctx.accounts.staking.id.to_le_bytes(),
+            ctx.accounts.beneficiary.to_account_info().key.as_ref(),
             &[ctx.accounts.member.nonce],
         ];
-        let member_signer = &[&seeds[..]];
+        let signer = &[&seeds[..]];
         let cpi_ctx = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             token::Transfer {
                 from: ctx.accounts.available.to_account_info(),
                 to: ctx.accounts.stake.to_account_info(),
-                authority: ctx.accounts.member_signer.to_account_info(),
+                authority: ctx.accounts.member.to_account_info(),
             },
-            member_signer,
+            signer,
         );
         token::transfer(cpi_ctx, amount)?;
 
@@ -121,7 +123,7 @@ pub mod staking_factory {
         Ok(())
     }
 
-    pub fn claim_reward(ctx: Context<ClaimReward>, id: u16) -> Result<()> {
+    pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp;
 
         if ts - ctx.accounts.member.last_reward_ts < ctx.accounts.staking.reward_period {
@@ -140,7 +142,7 @@ pub mod staking_factory {
 
         let seeds = &[
             b"staking".as_ref(),
-            &id.to_le_bytes(),
+            &ctx.accounts.staking.id.to_le_bytes(),
             &[ctx.accounts.staking.bump],
         ];
         let signer = &[&seeds[..]];
@@ -160,20 +162,20 @@ pub mod staking_factory {
         let ts = Clock::get()?.unix_timestamp;
 
         let seeds = &[
-            ctx.accounts.staking.to_account_info().key.as_ref(),
-            ctx.accounts.member.to_account_info().key.as_ref(),
+            b"member".as_ref(),
+            &ctx.accounts.staking.id.to_le_bytes(),
+            ctx.accounts.beneficiary.to_account_info().key.as_ref(),
             &[ctx.accounts.member.nonce],
         ];
-        let member_signer = &[&seeds[..]];
-
+        let signer = &[&seeds[..]];
         let cpi_ctx = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             token::Transfer {
                 from: ctx.accounts.stake.to_account_info(),
                 to: ctx.accounts.pending.to_account_info(),
-                authority: ctx.accounts.member_signer.to_account_info(),
+                authority: ctx.accounts.member.to_account_info(),
             },
-            member_signer,
+            signer,
         );
         token::transfer(cpi_ctx, amount)?;
 
@@ -198,8 +200,9 @@ pub mod staking_factory {
         }
 
         let seeds = &[
-            ctx.accounts.staking.to_account_info().key.as_ref(),
-            ctx.accounts.member.to_account_info().key.as_ref(),
+            b"member".as_ref(),
+            &ctx.accounts.staking.id.to_le_bytes(),
+            ctx.accounts.beneficiary.to_account_info().key.as_ref(),
             &[ctx.accounts.member.nonce],
         ];
         let signer = &[&seeds[..]];
@@ -208,7 +211,7 @@ pub mod staking_factory {
             Transfer {
                 from: ctx.accounts.pending.to_account_info(),
                 to: ctx.accounts.available.to_account_info(),
-                authority: ctx.accounts.member_signer.to_account_info(),
+                authority: ctx.accounts.member.to_account_info(),
             },
             signer,
         );
@@ -222,15 +225,16 @@ pub mod staking_factory {
 
     pub fn withdraw(ctx: Context<Withdraw>, amount: u64) -> Result<()> {
         let seeds = &[
-            ctx.accounts.staking.to_account_info().key.as_ref(),
-            ctx.accounts.member.to_account_info().key.as_ref(),
+            b"member".as_ref(),
+            &ctx.accounts.staking.id.to_le_bytes(),
+            ctx.accounts.beneficiary.to_account_info().key.as_ref(),
             &[ctx.accounts.member.nonce],
         ];
         let signer = &[&seeds[..]];
         let cpi_accounts = Transfer {
             from: ctx.accounts.available.to_account_info(),
             to: ctx.accounts.receiver.to_account_info(),
-            authority: ctx.accounts.member_signer.to_account_info(),
+            authority: ctx.accounts.member.to_account_info(),
         };
         let cpi_ctx = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
