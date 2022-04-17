@@ -2,11 +2,12 @@ use anchor_lang::prelude::*;
 
 #[account]
 pub struct Factory {
+    pub bump: u8,
     pub authority: Pubkey,
     pub stakings_count: u16,
 }
 impl Factory {
-    pub const LEN: usize = 32 + 2;
+    pub const LEN: usize = 1 + 32 + 2;
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
@@ -18,6 +19,7 @@ pub enum RewardType {
 #[account]
 pub struct Staking {
     pub bump: u8,
+    pub bump_vault: u8,
     pub authority: Pubkey,
     pub id: u16,
     pub withdrawal_timelock: i64,
@@ -31,25 +33,29 @@ pub struct Staking {
     pub stakes_sum: u64,
 }
 impl Staking {
-    pub const LEN: usize = 1 + 32 + 2 + 8 + 32 + 8 + 1 + 8 + 8;
+    pub const LEN: usize = 1 + 1 + 32 + 2 + 8 + 32 + 8 + 1 + 8 + 8;
 }
 
 #[account]
 pub struct Member {
     pub bump: u8,
+    pub bump_available: u8,
+    pub bump_stake: u8,
+    pub bump_pending: u8,
     pub last_reward_ts: i64,
 }
 impl Member {
-    pub const LEN: usize = 1 + 8;
+    pub const LEN: usize = 1 + 1 + 1 + 1 + 8;
 }
 
 #[account]
 pub struct PendingWithdrawal {
+    pub bump: u8,
     pub burned: bool,
     pub start_ts: i64,
     pub end_ts: i64,
     pub amount: u64,
 }
 impl PendingWithdrawal {
-    pub const LEN: usize = 1 + 8 + 8 + 8;
+    pub const LEN: usize = 1 + 1 + 8 + 8 + 8;
 }

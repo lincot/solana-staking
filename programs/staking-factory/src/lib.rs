@@ -18,6 +18,7 @@ pub mod staking_factory {
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         let factory = &mut ctx.accounts.factory;
 
+        factory.bump = *ctx.bumps.get("factory").unwrap();
         factory.authority = ctx.accounts.authority.key();
 
         Ok(())
@@ -35,6 +36,7 @@ pub mod staking_factory {
         let factory = &mut ctx.accounts.factory;
 
         staking.bump = *ctx.bumps.get("staking").unwrap();
+        staking.bump_vault = *ctx.bumps.get("reward_vault").unwrap();
         staking.authority = ctx.accounts.authority.key();
         staking.id = factory.stakings_count;
         staking.mint = mint;
@@ -69,6 +71,9 @@ pub mod staking_factory {
         let member = &mut ctx.accounts.member;
 
         member.bump = *ctx.bumps.get("member").unwrap();
+        member.bump_available = *ctx.bumps.get("available").unwrap();
+        member.bump_stake = *ctx.bumps.get("stake").unwrap();
+        member.bump_pending = *ctx.bumps.get("pending").unwrap();
 
         Ok(())
     }
@@ -166,6 +171,7 @@ pub mod staking_factory {
         token::transfer(cpi_ctx, amount)?;
 
         let pending_withdrawal = &mut ctx.accounts.pending_withdrawal;
+        pending_withdrawal.bump = *ctx.bumps.get("pending_withdrawal").unwrap();
         pending_withdrawal.burned = false;
         pending_withdrawal.start_ts = ts;
         pending_withdrawal.end_ts = ts + ctx.accounts.staking.withdrawal_timelock;

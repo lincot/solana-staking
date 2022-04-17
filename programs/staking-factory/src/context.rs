@@ -13,7 +13,7 @@ pub struct Initialize<'info> {
 
 #[derive(Accounts)]
 pub struct CreateStaking<'info> {
-    #[account(mut, seeds = [b"factory"], bump)]
+    #[account(mut, seeds = [b"factory"], bump = factory.bump)]
     pub factory: Account<'info, Factory>,
     #[account(
         init,
@@ -103,7 +103,7 @@ pub struct Deposit<'info> {
     )]
     pub member: Account<'info, Member>,
     pub beneficiary: Signer<'info>,
-    #[account(mut, seeds = [b"available", member.key().as_ref()], bump)]
+    #[account(mut, seeds = [b"available", member.key().as_ref()], bump = member.bump_available)]
     pub available: Account<'info, TokenAccount>,
     #[account(mut, token::authority = beneficiary)]
     pub depositor: Account<'info, TokenAccount>,
@@ -120,9 +120,9 @@ pub struct Stake<'info> {
     )]
     pub member: Account<'info, Member>,
     pub beneficiary: Signer<'info>,
-    #[account(mut, seeds = [b"available", member.key().as_ref()], bump)]
+    #[account(mut, seeds = [b"available", member.key().as_ref()], bump = member.bump_available)]
     pub available: Account<'info, TokenAccount>,
-    #[account(mut, seeds = [b"stake", member.key().as_ref()], bump)]
+    #[account(mut, seeds = [b"stake", member.key().as_ref()], bump = member.bump_stake)]
     pub stake: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
@@ -136,9 +136,9 @@ pub struct ClaimReward<'info> {
     )]
     pub member: Account<'info, Member>,
     pub beneficiary: Signer<'info>,
-    #[account(seeds = [b"stake", member.key().as_ref()], bump)]
+    #[account(seeds = [b"stake", member.key().as_ref()], bump = member.bump_stake)]
     pub stake: Account<'info, TokenAccount>,
-    #[account(mut, seeds = [b"reward_vault", staking.key().as_ref()], bump)]
+    #[account(mut, seeds = [b"reward_vault", staking.key().as_ref()], bump = staking.bump_vault)]
     pub reward_vault: Account<'info, TokenAccount>,
     #[account(mut, token::authority = beneficiary, token::mint = reward_vault.mint)]
     pub to: Account<'info, TokenAccount>,
@@ -163,9 +163,9 @@ pub struct StartUnstake<'info> {
     pub member: Account<'info, Member>,
     #[account(mut)]
     pub beneficiary: Signer<'info>,
-    #[account(mut, seeds = [b"stake", member.key().as_ref()], bump)]
+    #[account(mut, seeds = [b"stake", member.key().as_ref()], bump = member.bump_stake)]
     pub stake: Account<'info, TokenAccount>,
-    #[account(mut, seeds = [b"pending", member.key().as_ref()], bump)]
+    #[account(mut, seeds = [b"pending", member.key().as_ref()], bump = member.bump_pending)]
     pub pending: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
@@ -183,13 +183,13 @@ pub struct EndUnstake<'info> {
     #[account(
         mut,
         seeds = [b"pending_withdrawal", member.key().as_ref()],
-        bump,
+        bump = pending_withdrawal.bump,
         constraint = !pending_withdrawal.burned
     )]
     pub pending_withdrawal: Account<'info, PendingWithdrawal>,
-    #[account(mut, seeds = [b"available", member.key().as_ref()], bump)]
+    #[account(mut, seeds = [b"available", member.key().as_ref()], bump = member.bump_available)]
     pub available: Account<'info, TokenAccount>,
-    #[account(mut, seeds = [b"pending", member.key().as_ref()], bump)]
+    #[account(mut, seeds = [b"pending", member.key().as_ref()], bump = member.bump_pending)]
     pub pending: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
@@ -203,7 +203,7 @@ pub struct Withdraw<'info> {
     )]
     pub member: Account<'info, Member>,
     pub beneficiary: Signer<'info>,
-    #[account(mut, seeds = [b"available", member.key().as_ref()], bump)]
+    #[account(mut, seeds = [b"available", member.key().as_ref()], bump = member.bump_available)]
     pub available: Account<'info, TokenAccount>,
     #[account(mut)]
     pub receiver: Account<'info, TokenAccount>,
