@@ -109,7 +109,12 @@ pub mod staking_factory {
         );
         token::transfer(cpi_ctx, amount)?;
 
-        ctx.accounts.staking.stakes_sum += amount;
+        let staking = &mut ctx.accounts.staking;
+
+        staking.stakes_sum = staking
+            .stakes_sum
+            .checked_add(amount)
+            .ok_or(StakingError::Overflow)?;
 
         Ok(())
     }
@@ -121,12 +126,23 @@ pub mod staking_factory {
             return err!(StakingError::ClaimTimelock);
         }
 
+        let staked_amount = ctx.accounts.stake.amount;
+
+        if staked_amount == 0 {
+            return err!(StakingError::NothingToClaim);
+        }
+
         let reward_amount = match ctx.accounts.staking.reward_type {
             RewardType::Absolute => {
-                ctx.accounts.stake.amount * ctx.accounts.staking.reward_amount / 100
+                staked_amount
+                    .checked_mul(ctx.accounts.staking.reward_amount)
+                    .ok_or(StakingError::Overflow)?
+                    / 100
             }
             RewardType::Relative => {
-                ctx.accounts.stake.amount * ctx.accounts.staking.reward_amount
+                staked_amount
+                    .checked_mul(ctx.accounts.staking.reward_amount)
+                    .ok_or(StakingError::Overflow)?
                     / ctx.accounts.staking.stakes_sum
             }
         };

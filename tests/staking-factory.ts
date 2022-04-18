@@ -229,6 +229,20 @@ describe("staking", () => {
     expect(availableAccount.amount).to.eql(BigInt(amount));
   });
 
+  it("fails to claim reward before staking", async () => {
+    await expect(
+      stakingFactory.methods.claimReward().accounts({
+        staking,
+        member,
+        beneficiary: beneficiary.publicKey,
+        stake,
+        rewardVault,
+        to: beneficiaryDepositor,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      }).signers([beneficiary]).rpc(),
+    ).to.be.rejected;
+  });
+
   it("stakes", async () => {
     const amount = 10;
 
