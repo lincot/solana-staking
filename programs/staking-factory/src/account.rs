@@ -10,10 +10,13 @@ impl Factory {
     pub const LEN: usize = 1 + 32 + 2;
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
-pub enum RewardType {
-    Absolute,
-    Relative,
+#[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone, Debug)]
+pub enum RewardAmount {
+    Absolute { num: u64, denom: u64 },
+    Relative { total_amount: u64 },
+}
+impl RewardAmount {
+    pub const LEN: usize = 1 + 8 + 8;
 }
 
 #[account]
@@ -25,15 +28,11 @@ pub struct Staking {
     pub withdrawal_timelock: i64,
     pub mint: Pubkey,
     pub reward_period: i64,
-    pub reward_type: RewardType,
-    /// - if reward_type is Absolute, it's a percent of member's staked tokens
-    /// - if reward_type is Relative, it's an amount which will be shared according
-    /// to the share of user stake in total stakes
-    pub reward_amount: u64,
+    pub reward_amount: RewardAmount,
     pub stakes_sum: u64,
 }
 impl Staking {
-    pub const LEN: usize = 1 + 1 + 32 + 2 + 8 + 32 + 8 + 1 + 8 + 8;
+    pub const LEN: usize = 1 + 1 + 32 + 2 + 8 + 32 + 8 + RewardAmount::LEN + 8;
 }
 
 #[account]

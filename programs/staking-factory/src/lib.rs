@@ -29,8 +29,7 @@ pub mod staking_factory {
         mint: Pubkey,
         withdrawal_timelock: i64,
         reward_period: i64,
-        reward_type: RewardType,
-        reward_amount: u64,
+        reward_amount: RewardAmount,
     ) -> Result<()> {
         let staking = &mut ctx.accounts.staking;
         let factory = &mut ctx.accounts.factory;
@@ -41,7 +40,6 @@ pub mod staking_factory {
         staking.id = factory.stakings_count;
         staking.mint = mint;
         staking.withdrawal_timelock = withdrawal_timelock;
-        staking.reward_type = reward_type;
         staking.reward_amount = reward_amount;
         staking.reward_period = reward_period;
 
@@ -52,7 +50,7 @@ pub mod staking_factory {
 
     pub fn change_config(
         ctx: Context<ChangeConfig>,
-        reward_amount: Option<u64>,
+        reward_amount: Option<RewardAmount>,
         reward_period: Option<i64>,
     ) -> Result<()> {
         let staking = &mut ctx.accounts.staking;
@@ -132,16 +130,16 @@ pub mod staking_factory {
             return err!(StakingError::NothingToClaim);
         }
 
-        let reward_amount = match ctx.accounts.staking.reward_type {
-            RewardType::Absolute => {
+        let reward_amount = match ctx.accounts.staking.reward_amount {
+            RewardAmount::Absolute { num, denom } => {
                 staked_amount
-                    .checked_mul(ctx.accounts.staking.reward_amount)
+                    .checked_mul(num)
                     .ok_or(StakingError::Overflow)?
-                    / 100
+                    / denom
             }
-            RewardType::Relative => {
+            RewardAmount::Relative { total_amount } => {
                 staked_amount
-                    .checked_mul(ctx.accounts.staking.reward_amount)
+                    .checked_mul(total_amount)
                     .ok_or(StakingError::Overflow)?
                     / ctx.accounts.staking.stakes_sum
             }

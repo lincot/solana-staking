@@ -126,11 +126,11 @@ describe("staking", () => {
       );
 
     await stakingFactory.methods.createStaking(
+      // @ts-ignore: broken enum type
       mint,
       new BN(2),
       new BN(3600),
-      { absolute: {} },
-      new BN(1337),
+      { absolute: { num: new BN(1337), denom: new BN(100) } },
     ).accounts({
       factory,
       staking,
@@ -152,7 +152,11 @@ describe("staking", () => {
   });
 
   it("changes config", async () => {
-    await stakingFactory.methods.changeConfig(new BN(1700), null).accounts({
+    await stakingFactory.methods.changeConfig(
+      // @ts-ignore: broken enum type
+      { absolute: { num: new BN(1700), denom: new BN(100) } },
+      null,
+    ).accounts({
       staking,
       authority: stakingAuthority.publicKey,
     }).signers([stakingAuthority]).rpc();
