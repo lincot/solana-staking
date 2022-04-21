@@ -11,6 +11,9 @@ pub mod error;
 
 declare_id!("74Gn5o8MXGWuNgApSz7kkfcdWHGpVAcrgs41ZfW1bHbK");
 
+const FACTORY_FEE_NUM: u64 = 3;
+const FACTORY_FEE_DENOM: u64 = 100;
+
 #[program]
 pub mod staking_factory {
     use super::*;
@@ -97,7 +100,7 @@ pub mod staking_factory {
             return err!(StakingError::NothingToClaim);
         }
 
-        let reward_amount = match ctx.accounts.staking.reward_amount {
+        let total_amount = match ctx.accounts.staking.reward_amount {
             RewardAmount::Absolute { num, denom } => {
                 staked_amount
                     .checked_mul(num)
@@ -111,8 +114,16 @@ pub mod staking_factory {
                     / ctx.accounts.staking.stakes_sum
             }
         };
+        let factory_fee = total_amount
+            .checked_mul(FACTORY_FEE_NUM)
+            .ok_or(StakingError::Overflow)?
+            / FACTORY_FEE_DENOM;
+        let amount_to_user = total_amount - factory_fee;
 
-        ctx.accounts.transfer(reward_amount)
+        ctx.accounts.transfer_to_user(amount_to_user)?;
+        ctx.accounts.transfer_to_factory_owner(factory_fee)?;
+
+        Ok(())
     }
 
     pub fn start_unstake(ctx: Context<StartUnstake>, amount: u64) -> Result<()> {
@@ -187,7 +198,7 @@ impl<'info> Stake<'info> {
 }
 
 impl<'info> ClaimReward<'info> {
-    fn transfer(&self, amount: u64) -> Result<()> {
+    fn transfer_to_user(&self, amount: u64) -> Result<()> {
         let seeds = &[
             b"staking".as_ref(),
             &self.staking.id.to_le_bytes(),
@@ -199,6 +210,25 @@ impl<'info> ClaimReward<'info> {
             token::Transfer {
                 from: self.reward_vault.to_account_info(),
                 to: self.to.to_account_info(),
+                authority: self.staking.to_account_info(),
+            },
+            signer,
+        );
+        token::transfer(cpi_ctx, amount)
+    }
+
+    fn transfer_to_factory_owner(&self, amount: u64) -> Result<()> {
+        let seeds = &[
+            b"staking".as_ref(),
+            &self.staking.id.to_le_bytes(),
+            &[self.staking.bump],
+        ];
+        let signer = &[&seeds[..]];
+        let cpi_ctx = CpiContext::new_with_signer(
+            self.token_program.to_account_info(),
+            token::Transfer {
+                from: self.reward_vault.to_account_info(),
+                to: self.factory_vault.to_account_info(),
                 authority: self.staking.to_account_info(),
             },
             signer,

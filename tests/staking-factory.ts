@@ -67,6 +67,7 @@ describe("staking", () => {
 
   let mint: PublicKey;
   let beneficiaryDepositor: PublicKey;
+  let factoryVault: PublicKey;
 
   it("creates mint", async () => {
     mint = await createMint(
@@ -91,6 +92,13 @@ describe("staking", () => {
       mintAuthority,
       1000,
     );
+
+    factoryVault = (await getOrCreateAssociatedTokenAccount(
+      connection,
+      factoryAuthority,
+      mint,
+      factoryAuthority.publicKey,
+    )).address;
   });
 
   let factory: PublicKey;
@@ -236,12 +244,14 @@ describe("staking", () => {
   it("fails to claim reward before staking", async () => {
     await expect(
       stakingFactory.methods.claimReward().accounts({
+        factory,
         staking,
         member,
         beneficiary: beneficiary.publicKey,
         stake,
         rewardVault,
         to: beneficiaryDepositor,
+        factoryVault,
         tokenProgram: TOKEN_PROGRAM_ID,
       }).signers([beneficiary]).rpc(),
     ).to.be.rejected;
@@ -273,27 +283,29 @@ describe("staking", () => {
   });
 
   it("claims reward", async () => {
-    const amount_before = (await getAccount(
-      connection,
-      beneficiaryDepositor,
-    )).amount;
-
     await stakingFactory.methods.claimReward().accounts({
+      factory,
       staking,
       member,
       beneficiary: beneficiary.publicKey,
       stake,
       rewardVault,
       to: beneficiaryDepositor,
+      factoryVault,
       tokenProgram: TOKEN_PROGRAM_ID,
     }).signers([beneficiary]).rpc();
 
-    const amount_after = (await getAccount(
+    const beneficiaryDepositorAccount = await getAccount(
       connection,
       beneficiaryDepositor,
-    )).amount;
+    );
+    const factoryVaultAccount = await getAccount(
+      connection,
+      factoryVault,
+    );
 
-    expect(amount_after - amount_before).to.eq(BigInt(170));
+    expect(beneficiaryDepositorAccount.amount).to.eq(BigInt(1045));
+    expect(factoryVaultAccount.amount).to.eq(BigInt(5));
   });
 
   let pendingWithdrawal: PublicKey;
@@ -352,28 +364,18 @@ describe("staking", () => {
   });
 
   it("ends unstake", async () => {
-    const amount_before = (await getAccount(
-      connection,
-      available,
-    )).amount;
-
     await endUnstake();
 
-    const amount_after = (await getAccount(
+    const availableAccount = await getAccount(
       connection,
       available,
-    )).amount;
+    );
 
-    expect(amount_after - amount_before).to.eq(BigInt(10));
+    expect(availableAccount.amount).to.eq(BigInt(120));
   });
 
   it("withdraws", async () => {
     const amount = 100;
-
-    const amount_before = (await getAccount(
-      connection,
-      beneficiaryDepositor,
-    )).amount;
 
     await stakingFactory.methods.withdraw(new BN(amount)).accounts({
       staking,
@@ -384,11 +386,11 @@ describe("staking", () => {
       tokenProgram: TOKEN_PROGRAM_ID,
     }).signers([beneficiary]).rpc();
 
-    const amount_after = (await getAccount(
+    const beneficiaryDepositorAccount = await getAccount(
       connection,
       beneficiaryDepositor,
-    )).amount;
+    );
 
-    expect(amount_after - amount_before).to.eq(BigInt(amount));
+    expect(beneficiaryDepositorAccount.amount).to.eq(BigInt(1145));
   });
 });

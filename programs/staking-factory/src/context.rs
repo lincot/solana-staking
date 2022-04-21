@@ -129,6 +129,8 @@ pub struct Stake<'info> {
 
 #[derive(Accounts)]
 pub struct ClaimReward<'info> {
+    #[account(seeds = [b"factory"], bump = factory.bump)]
+    pub factory: Account<'info, Factory>,
     pub staking: Account<'info, Staking>,
     #[account(
         seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()],
@@ -142,6 +144,8 @@ pub struct ClaimReward<'info> {
     pub reward_vault: Account<'info, TokenAccount>,
     #[account(mut, token::authority = beneficiary, token::mint = reward_vault.mint)]
     pub to: Account<'info, TokenAccount>,
+    #[account(mut, token::authority = factory.authority, token::mint = reward_vault.mint)]
+    pub factory_vault: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
 
