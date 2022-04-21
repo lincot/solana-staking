@@ -115,6 +115,7 @@ pub struct Stake<'info> {
     #[account(mut)]
     pub staking: Account<'info, Staking>,
     #[account(
+        mut,
         seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()],
         bump = member.bump,
     )]
@@ -161,6 +162,7 @@ pub struct StartUnstake<'info> {
     )]
     pub pending_withdrawal: Account<'info, PendingWithdrawal>,
     #[account(
+        mut,
         seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()],
         bump = member.bump,
     )]

@@ -37,32 +37,25 @@ describe("staking", () => {
   const beneficiary = new Keypair();
 
   it("airdrops", async () => {
-    await Promise.all([
-      connection.confirmTransaction(
-        await connection.requestAirdrop(
-          mintAuthority.publicKey,
-          100_000_000,
-        ),
+    await Promise.all(
+      await Promise.all(
+        [
+          mintAuthority,
+          factoryAuthority,
+          stakingAuthority,
+          beneficiary,
+        ]
+          .map(
+            async (k) =>
+              connection.confirmTransaction(
+                await connection.requestAirdrop(
+                  k.publicKey,
+                  100_000_000,
+                ),
+              ),
+          ),
       ),
-      connection.confirmTransaction(
-        await connection.requestAirdrop(
-          factoryAuthority.publicKey,
-          100_000_000,
-        ),
-      ),
-      connection.confirmTransaction(
-        await connection.requestAirdrop(
-          stakingAuthority.publicKey,
-          100_000_000,
-        ),
-      ),
-      connection.confirmTransaction(
-        await connection.requestAirdrop(
-          beneficiary.publicKey,
-          100_000_000,
-        ),
-      ),
-    ]);
+    );
   });
 
   let mint: PublicKey;
@@ -90,7 +83,7 @@ describe("staking", () => {
       mint,
       beneficiaryDepositor,
       mintAuthority,
-      1000,
+      100,
     );
 
     factoryVault = (await getOrCreateAssociatedTokenAccount(
@@ -136,9 +129,8 @@ describe("staking", () => {
     await stakingFactory.methods.createStaking(
       // @ts-ignore: broken enum type
       mint,
-      new BN(2),
-      new BN(3600),
-      { absolute: { num: new BN(1337), denom: new BN(100) } },
+      2,
+      { apr: { num: new BN(1337), denom: new BN(100) } },
     ).accounts({
       factory,
       staking,
@@ -155,15 +147,14 @@ describe("staking", () => {
       mint,
       rewardVault,
       mintAuthority,
-      1000000,
+      1_000_000,
     );
   });
 
   it("changes config", async () => {
     await stakingFactory.methods.changeConfig(
       // @ts-ignore: broken enum type
-      { absolute: { num: new BN(1700), denom: new BN(100) } },
-      null,
+      { apr: { num: new BN(10), denom: new BN(100) } },
     ).accounts({
       staking,
       authority: stakingAuthority.publicKey,
@@ -222,9 +213,7 @@ describe("staking", () => {
   });
 
   it("deposits", async () => {
-    const amount = 120;
-
-    await stakingFactory.methods.deposit(new BN(amount)).accounts({
+    await stakingFactory.methods.deposit(new BN(100)).accounts({
       staking,
       member,
       beneficiary: beneficiary.publicKey,
@@ -237,8 +226,7 @@ describe("staking", () => {
       connection,
       available,
     );
-
-    expect(availableAccount.amount).to.eql(BigInt(amount));
+    expect(availableAccount.amount).to.eql(BigInt(100));
   });
 
   it("fails to claim reward before staking", async () => {
@@ -258,9 +246,7 @@ describe("staking", () => {
   });
 
   it("stakes", async () => {
-    const amount = 10;
-
-    await stakingFactory.methods.stake(new BN(amount)).accounts({
+    await stakingFactory.methods.stake(new BN(100)).accounts({
       staking,
       member,
       beneficiary: beneficiary.publicKey,
@@ -269,17 +255,21 @@ describe("staking", () => {
       tokenProgram: TOKEN_PROGRAM_ID,
     }).signers([beneficiary]).rpc();
 
-    const [availableAccount, stakeAccount] = await Promise.all(
-      [available, stake].map((v) =>
-        getAccount(
-          connection,
-          v,
-        )
-      ),
+    const availableAccount = await getAccount(
+      connection,
+      available,
     );
+    expect(availableAccount.amount).to.eql(BigInt(0));
 
-    expect(availableAccount.amount).to.eql(BigInt(110));
-    expect(stakeAccount.amount).to.eql(BigInt(10));
+    const stakeAccount = await getAccount(
+      connection,
+      stake,
+    );
+    expect(stakeAccount.amount).to.eql(BigInt(100));
+  });
+
+  it("waits", async () => {
+    await sleep(2000);
   });
 
   it("claims reward", async () => {
@@ -299,27 +289,28 @@ describe("staking", () => {
       connection,
       beneficiaryDepositor,
     );
+    expect(beneficiaryDepositorAccount.amount).to.be.oneOf([
+      BigInt(39),
+      BigInt(49),
+    ]);
+
     const factoryVaultAccount = await getAccount(
       connection,
       factoryVault,
     );
-
-    expect(beneficiaryDepositorAccount.amount).to.eq(BigInt(1045));
-    expect(factoryVaultAccount.amount).to.eq(BigInt(5));
+    expect(factoryVaultAccount.amount).to.eq(BigInt(1));
   });
 
   let pendingWithdrawal: PublicKey;
 
   it("starts unstake", async () => {
-    const amount = 10;
-
     [pendingWithdrawal] = await PublicKey
       .findProgramAddress(
         [Buffer.from("pending_withdrawal"), member.toBuffer()],
         stakingFactory.programId,
       );
 
-    await stakingFactory.methods.startUnstake(new BN(amount)).accounts({
+    await stakingFactory.methods.startUnstake(new BN(100)).accounts({
       staking,
       pendingWithdrawal,
       member,
@@ -330,17 +321,17 @@ describe("staking", () => {
       systemProgram: SystemProgram.programId,
     }).signers([beneficiary]).rpc();
 
-    const [stakeAccount, pendingAccount] = await Promise.all(
-      [stake, pending].map((v) =>
-        getAccount(
-          connection,
-          v,
-        )
-      ),
+    const stakeAccount = await getAccount(
+      connection,
+      stake,
     );
-
     expect(stakeAccount.amount).to.eql(BigInt(0));
-    expect(pendingAccount.amount).to.eql(BigInt(10));
+
+    const pendingAccount = await getAccount(
+      connection,
+      pending,
+    );
+    expect(pendingAccount.amount).to.eql(BigInt(100));
   });
 
   const endUnstake = async () => {
@@ -370,14 +361,11 @@ describe("staking", () => {
       connection,
       available,
     );
-
-    expect(availableAccount.amount).to.eq(BigInt(120));
+    expect(availableAccount.amount).to.eq(BigInt(100));
   });
 
   it("withdraws", async () => {
-    const amount = 100;
-
-    await stakingFactory.methods.withdraw(new BN(amount)).accounts({
+    await stakingFactory.methods.withdraw(new BN(100)).accounts({
       staking,
       member,
       beneficiary: beneficiary.publicKey,
@@ -391,6 +379,9 @@ describe("staking", () => {
       beneficiaryDepositor,
     );
 
-    expect(beneficiaryDepositorAccount.amount).to.eq(BigInt(1145));
+    expect(beneficiaryDepositorAccount.amount).to.be.oneOf([
+      BigInt(139),
+      BigInt(149),
+    ]);
   });
 });

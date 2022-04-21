@@ -28,8 +28,7 @@ pub mod staking_factory {
     pub fn create_staking(
         ctx: Context<CreateStaking>,
         mint: Pubkey,
-        withdrawal_timelock: i64,
-        reward_period: i64,
+        withdrawal_timelock: u32,
         reward_amount: RewardAmount,
     ) -> Result<()> {
         ctx.accounts.staking.bump = *ctx.bumps.get("staking").unwrap();
@@ -39,7 +38,6 @@ pub mod staking_factory {
         ctx.accounts.staking.mint = mint;
         ctx.accounts.staking.withdrawal_timelock = withdrawal_timelock;
         ctx.accounts.staking.reward_amount = reward_amount;
-        ctx.accounts.staking.reward_period = reward_period;
 
         ctx.accounts.factory.stakings_count += 1;
 
@@ -49,13 +47,9 @@ pub mod staking_factory {
     pub fn change_config(
         ctx: Context<ChangeConfig>,
         reward_amount: Option<RewardAmount>,
-        reward_period: Option<i64>,
     ) -> Result<()> {
         if let Some(reward_amount) = reward_amount {
             ctx.accounts.staking.reward_amount = reward_amount;
-        }
-        if let Some(reward_period) = reward_period {
-            ctx.accounts.staking.reward_period = reward_period;
         }
 
         Ok(())
@@ -71,16 +65,26 @@ pub mod staking_factory {
     }
 
     pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
-        ctx.accounts.transfer(amount)
+        ctx.accounts.transfer(amount)?;
+
+        Ok(())
     }
 
     pub fn stake(ctx: Context<Stake>, amount: u64) -> Result<()> {
+        let ts = Clock::get()?.unix_timestamp as u32;
+
+        ctx.accounts.member.unclaimed_rewards = (ctx.accounts.member.unclaimed_rewards)
+            .checked_add((ctx.accounts.staking.reward_amount).get(
+                ctx.accounts.stake.amount,
+                ctx.accounts.staking.stakes_sum,
+                ts,
+                &mut ctx.accounts.member.last_reward_ts,
+            )?)
+            .ok_or(StakingError::Overflow)?;
+
         ctx.accounts.transfer(amount)?;
 
-        ctx.accounts.staking.stakes_sum = ctx
-            .accounts
-            .staking
-            .stakes_sum
+        ctx.accounts.staking.stakes_sum = (ctx.accounts.staking.stakes_sum)
             .checked_add(amount)
             .ok_or(StakingError::Overflow)?;
 
@@ -88,32 +92,21 @@ pub mod staking_factory {
     }
 
     pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {
-        let ts = Clock::get()?.unix_timestamp;
+        let ts = Clock::get()?.unix_timestamp as u32;
 
-        if ts - ctx.accounts.member.last_reward_ts < ctx.accounts.staking.reward_period {
-            return err!(StakingError::ClaimTimelock);
-        }
-
-        let staked_amount = ctx.accounts.stake.amount;
-
-        if staked_amount == 0 {
+        let total_amount = ctx.accounts.staking.reward_amount.get(
+            ctx.accounts.stake.amount,
+            ctx.accounts.staking.stakes_sum,
+            ts,
+            &mut ctx.accounts.member.last_reward_ts,
+        )?;
+        let total_amount = total_amount
+            .checked_add(ctx.accounts.member.unclaimed_rewards)
+            .ok_or(StakingError::Overflow)?;
+        if total_amount == 0 {
             return err!(StakingError::NothingToClaim);
         }
 
-        let total_amount = match ctx.accounts.staking.reward_amount {
-            RewardAmount::Absolute { num, denom } => {
-                staked_amount
-                    .checked_mul(num)
-                    .ok_or(StakingError::Overflow)?
-                    / denom
-            }
-            RewardAmount::Relative { total_amount } => {
-                staked_amount
-                    .checked_mul(total_amount)
-                    .ok_or(StakingError::Overflow)?
-                    / ctx.accounts.staking.stakes_sum
-            }
-        };
         let factory_fee = total_amount
             .checked_mul(FACTORY_FEE_NUM)
             .ok_or(StakingError::Overflow)?
@@ -123,11 +116,22 @@ pub mod staking_factory {
         ctx.accounts.transfer_to_user(amount_to_user)?;
         ctx.accounts.transfer_to_factory_owner(factory_fee)?;
 
+        ctx.accounts.member.unclaimed_rewards = 0;
+
         Ok(())
     }
 
     pub fn start_unstake(ctx: Context<StartUnstake>, amount: u64) -> Result<()> {
-        let ts = Clock::get()?.unix_timestamp;
+        let ts = Clock::get()?.unix_timestamp as u32;
+
+        ctx.accounts.member.unclaimed_rewards = (ctx.accounts.member.unclaimed_rewards)
+            .checked_add((ctx.accounts.staking.reward_amount).get(
+                ctx.accounts.stake.amount,
+                ctx.accounts.staking.stakes_sum,
+                ts,
+                &mut ctx.accounts.member.last_reward_ts,
+            )?)
+            .ok_or(StakingError::Overflow)?;
 
         ctx.accounts.transfer(amount)?;
 
@@ -143,7 +147,7 @@ pub mod staking_factory {
     }
 
     pub fn end_unstake(ctx: Context<EndUnstake>) -> Result<()> {
-        let ts = Clock::get()?.unix_timestamp;
+        let ts = Clock::get()?.unix_timestamp as u32;
 
         if ctx.accounts.pending_withdrawal.end_ts > ts {
             return err!(StakingError::UnstakeTimelock);
@@ -157,7 +161,9 @@ pub mod staking_factory {
     }
 
     pub fn withdraw(ctx: Context<Withdraw>, amount: u64) -> Result<()> {
-        ctx.accounts.transfer(amount)
+        ctx.accounts.transfer(amount)?;
+
+        Ok(())
     }
 }
 
