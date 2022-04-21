@@ -29,7 +29,7 @@ pub mod staking_factory {
         ctx: Context<CreateStaking>,
         mint: Pubkey,
         withdrawal_timelock: u32,
-        reward_amount: RewardAmount,
+        reward_type: RewardType,
     ) -> Result<()> {
         ctx.accounts.staking.bump = *ctx.bumps.get("staking").unwrap();
         ctx.accounts.staking.bump_vault = *ctx.bumps.get("reward_vault").unwrap();
@@ -37,7 +37,7 @@ pub mod staking_factory {
         ctx.accounts.staking.id = ctx.accounts.factory.stakings_count;
         ctx.accounts.staking.mint = mint;
         ctx.accounts.staking.withdrawal_timelock = withdrawal_timelock;
-        ctx.accounts.staking.reward_amount = reward_amount;
+        ctx.accounts.staking.reward_type = reward_type;
 
         ctx.accounts.factory.stakings_count += 1;
 
@@ -46,10 +46,10 @@ pub mod staking_factory {
 
     pub fn change_config(
         ctx: Context<ChangeConfig>,
-        reward_amount: Option<RewardAmount>,
+        reward_type: Option<RewardType>,
     ) -> Result<()> {
-        if let Some(reward_amount) = reward_amount {
-            ctx.accounts.staking.reward_amount = reward_amount;
+        if let Some(reward_type) = reward_type {
+            ctx.accounts.staking.reward_type = reward_type;
         }
 
         Ok(())
@@ -74,7 +74,7 @@ pub mod staking_factory {
         let ts = Clock::get()?.unix_timestamp as u32;
 
         ctx.accounts.member.unclaimed_rewards = (ctx.accounts.member.unclaimed_rewards)
-            .checked_add((ctx.accounts.staking.reward_amount).get(
+            .checked_add((ctx.accounts.staking.reward_type).get_reward_amount(
                 ctx.accounts.stake.amount,
                 ctx.accounts.staking.stakes_sum,
                 ts,
@@ -94,7 +94,7 @@ pub mod staking_factory {
     pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp as u32;
 
-        let total_amount = ctx.accounts.staking.reward_amount.get(
+        let total_amount = ctx.accounts.staking.reward_type.get_reward_amount(
             ctx.accounts.stake.amount,
             ctx.accounts.staking.stakes_sum,
             ts,
@@ -125,7 +125,7 @@ pub mod staking_factory {
         let ts = Clock::get()?.unix_timestamp as u32;
 
         ctx.accounts.member.unclaimed_rewards = (ctx.accounts.member.unclaimed_rewards)
-            .checked_add((ctx.accounts.staking.reward_amount).get(
+            .checked_add((ctx.accounts.staking.reward_type).get_reward_amount(
                 ctx.accounts.stake.amount,
                 ctx.accounts.staking.stakes_sum,
                 ts,

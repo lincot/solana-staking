@@ -130,7 +130,7 @@ describe("staking", () => {
       // @ts-ignore: broken enum type
       mint,
       2,
-      { apr: { num: new BN(1337), denom: new BN(100) } },
+      { interestRate: { num: new BN(1337), denom: new BN(100) } },
     ).accounts({
       factory,
       staking,
@@ -154,7 +154,7 @@ describe("staking", () => {
   it("changes config", async () => {
     await stakingFactory.methods.changeConfig(
       // @ts-ignore: broken enum type
-      { apr: { num: new BN(10), denom: new BN(100) } },
+      { interestRate: { num: new BN(10), denom: new BN(100) } },
     ).accounts({
       staking,
       authority: stakingAuthority.publicKey,

@@ -12,8 +12,8 @@ impl Factory {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone, Debug)]
-pub enum RewardAmount {
-    APR {
+pub enum RewardType {
+    InterestRate {
         num: u64,
         denom: u64,
     },
@@ -21,11 +21,15 @@ pub enum RewardAmount {
         total_amount: u64,
         reward_period: u32,
     },
+    Fixed {
+        required_amount: u64,
+        reward_amount: u64,
+    },
 }
-impl RewardAmount {
+impl RewardType {
     pub const LEN: usize = 1 + 8 + 8;
 
-    pub fn get(
+    pub fn get_reward_amount(
         &self,
         staked_amount: u64,
         stakes_sum: u64,
@@ -38,7 +42,7 @@ impl RewardAmount {
         }
 
         let reward_amount = match *self {
-            RewardAmount::APR { num, denom } => {
+            RewardType::InterestRate { num, denom } => {
                 staked_amount
                     .checked_mul((ts - *last_reward_ts) as u64)
                     .ok_or(StakingError::Overflow)?
@@ -46,7 +50,7 @@ impl RewardAmount {
                     .ok_or(StakingError::Overflow)?
                     / denom
             }
-            RewardAmount::Proportional {
+            RewardType::Proportional {
                 total_amount,
                 reward_period,
             } => {
@@ -58,6 +62,16 @@ impl RewardAmount {
                     .checked_mul(total_amount)
                     .ok_or(StakingError::Overflow)?
                     / stakes_sum
+            }
+            RewardType::Fixed {
+                required_amount,
+                reward_amount,
+            } => {
+                if staked_amount >= required_amount {
+                    reward_amount
+                } else {
+                    0
+                }
             }
         };
 
@@ -75,11 +89,11 @@ pub struct Staking {
     pub id: u16,
     pub withdrawal_timelock: u32,
     pub mint: Pubkey,
-    pub reward_amount: RewardAmount,
+    pub reward_type: RewardType,
     pub stakes_sum: u64,
 }
 impl Staking {
-    pub const LEN: usize = 1 + 1 + 32 + 2 + 4 + 32 + RewardAmount::LEN + 8;
+    pub const LEN: usize = 1 + 1 + 32 + 2 + 4 + 32 + RewardType::LEN + 8;
 }
 
 #[account]
