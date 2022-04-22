@@ -23,11 +23,12 @@ pub enum RewardType {
     },
     Fixed {
         required_amount: u64,
+        required_period: u32,
         reward_amount: u64,
     },
 }
 impl RewardType {
-    pub const LEN: usize = 1 + 8 + 8;
+    pub const LEN: usize = 1 + 8 + 2 + 8;
 
     pub fn get_reward_amount(
         &self,
@@ -65,13 +66,14 @@ impl RewardType {
             }
             RewardType::Fixed {
                 required_amount,
+                required_period,
                 reward_amount,
             } => {
-                if staked_amount >= required_amount {
-                    reward_amount
-                } else {
-                    0
+                if ts - *last_reward_ts < required_period || staked_amount < required_amount {
+                    return Ok(0);
                 }
+
+                reward_amount
             }
         };
 
