@@ -97,12 +97,13 @@ pub struct Staking {
     pub authority: Pubkey,
     pub id: u16,
     pub withdrawal_timelock: u32,
-    pub mint: Pubkey,
+    pub stake_mint: Pubkey,
+    pub reward_mint: Pubkey,
     pub reward_type: RewardType,
     pub stakes_sum: u64,
 }
 impl Staking {
-    pub const LEN: usize = 1 + 1 + 32 + 2 + 4 + 32 + RewardType::LEN + 8;
+    pub const LEN: usize = 1 + 1 + 32 + 2 + 4 + 32 + 32 + RewardType::LEN + 8;
 }
 
 #[account]

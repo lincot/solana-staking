@@ -49,9 +49,9 @@ pub struct ChangeConfig<'info> {
 
 #[derive(Accounts)]
 pub struct RegisterMember<'info> {
-    pub staking: Account<'info, Staking>,
-    #[account(address = staking.mint)]
-    pub mint: Account<'info, Mint>,
+    pub staking: Box<Account<'info, Staking>>,
+    #[account(address = staking.stake_mint)]
+    pub stake_mint: Account<'info, Mint>,
     #[account(
         init,
         payer = beneficiary,
@@ -76,7 +76,7 @@ pub struct RegisterMember<'info> {
         seeds = [b"available", member.key().as_ref()],
         bump,
         token::authority = member,
-        token::mint = mint,
+        token::mint = stake_mint,
     )]
     pub available: Account<'info, TokenAccount>,
     #[account(
@@ -85,7 +85,7 @@ pub struct RegisterMember<'info> {
         seeds = [b"stake", member.key().as_ref()],
         bump,
         token::authority = member,
-        token::mint = mint,
+        token::mint = stake_mint,
     )]
     pub stake: Account<'info, TokenAccount>,
     #[account(
@@ -94,7 +94,7 @@ pub struct RegisterMember<'info> {
         seeds = [b"pending", member.key().as_ref()],
         bump,
         token::authority = member,
-        token::mint = mint,
+        token::mint = stake_mint,
     )]
     pub pending: Account<'info, TokenAccount>,
     pub rent: Sysvar<'info, Rent>,
@@ -139,7 +139,7 @@ pub struct Stake<'info> {
 #[derive(Accounts)]
 pub struct ClaimReward<'info> {
     #[account(seeds = [b"factory"], bump = factory.bump)]
-    pub factory: Account<'info, Factory>,
+    pub factory: Box<Account<'info, Factory>>,
     pub staking: Account<'info, Staking>,
     #[account(
         seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()],

@@ -206,7 +206,7 @@ describe("staking", () => {
 
     await stakingFactory.methods.registerMember().accounts({
       staking,
-      mint,
+      stakeMint: mint,
       member,
       pendingWithdrawal,
       beneficiary: beneficiary.publicKey,

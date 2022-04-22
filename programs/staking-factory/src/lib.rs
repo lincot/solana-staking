@@ -27,7 +27,7 @@ pub mod staking_factory {
 
     pub fn create_staking(
         ctx: Context<CreateStaking>,
-        mint: Pubkey,
+        stake_mint: Pubkey,
         withdrawal_timelock: u32,
         reward_type: RewardType,
     ) -> Result<()> {
@@ -35,7 +35,8 @@ pub mod staking_factory {
         ctx.accounts.staking.bump_vault = *ctx.bumps.get("reward_vault").unwrap();
         ctx.accounts.staking.authority = ctx.accounts.authority.key();
         ctx.accounts.staking.id = ctx.accounts.factory.stakings_count;
-        ctx.accounts.staking.mint = mint;
+        ctx.accounts.staking.stake_mint = stake_mint;
+        ctx.accounts.staking.reward_mint = ctx.accounts.reward_mint.key();
         ctx.accounts.staking.withdrawal_timelock = withdrawal_timelock;
         ctx.accounts.staking.reward_type = reward_type;
 
