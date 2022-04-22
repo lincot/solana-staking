@@ -48,10 +48,16 @@ pub mod staking_factory {
 
     pub fn change_config(
         ctx: Context<ChangeConfig>,
-        reward_type: Option<RewardType>,
+        new_reward_type: Option<RewardType>,
     ) -> Result<()> {
-        if let Some(reward_type) = reward_type {
-            ctx.accounts.staking.reward_type = reward_type;
+        if let Some(new_reward_type) = new_reward_type {
+            if std::mem::discriminant(&ctx.accounts.staking.reward_type)
+                != std::mem::discriminant(&new_reward_type)
+            {
+                return err!(StakingError::CannotChangeStakingType);
+            }
+
+            ctx.accounts.staking.reward_type = new_reward_type;
         }
 
         Ok(())
