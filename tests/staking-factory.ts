@@ -299,6 +299,7 @@ describe("staking", () => {
     expect(beneficiaryDepositorAccount.amount).to.be.oneOf([
       BigInt(39),
       BigInt(49),
+      BigInt(59),
     ]);
 
     const factoryVaultAccount = await getAccount(
@@ -381,6 +382,7 @@ describe("staking", () => {
     expect(beneficiaryDepositorAccount.amount).to.be.oneOf([
       BigInt(139),
       BigInt(149),
+      BigInt(159),
     ]);
   });
 });

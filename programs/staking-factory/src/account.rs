@@ -44,8 +44,11 @@ impl RewardType {
 
         let reward_amount = match *self {
             RewardType::InterestRate { num, denom } => {
+                let rewards_count = ts - *last_reward_ts;
+                *last_reward_ts += rewards_count;
+
                 staked_amount
-                    .checked_mul((ts - *last_reward_ts) as u64)
+                    .checked_mul(rewards_count as u64)
                     .ok_or(StakingError::Overflow)?
                     .checked_mul(num)
                     .ok_or(StakingError::Overflow)?
@@ -55,11 +58,12 @@ impl RewardType {
                 total_amount,
                 reward_period,
             } => {
-                if ts - *last_reward_ts < reward_period {
-                    return Ok(0);
-                }
+                let rewards_count = (ts - *last_reward_ts) / reward_period;
+                *last_reward_ts += rewards_count * reward_period;
 
                 staked_amount
+                    .checked_mul(rewards_count as u64)
+                    .ok_or(StakingError::Overflow)?
                     .checked_mul(total_amount)
                     .ok_or(StakingError::Overflow)?
                     / stakes_sum
@@ -69,15 +73,18 @@ impl RewardType {
                 required_period,
                 reward_amount,
             } => {
-                if ts - *last_reward_ts < required_period || staked_amount < required_amount {
+                if staked_amount < required_amount {
                     return Ok(0);
                 }
 
+                let rewards_count = (ts - *last_reward_ts) / required_period;
+                *last_reward_ts += rewards_count * required_period;
+
                 reward_amount
+                    .checked_mul(rewards_count as u64)
+                    .ok_or(StakingError::Overflow)?
             }
         };
-
-        *last_reward_ts = ts;
 
         Ok(reward_amount)
     }
