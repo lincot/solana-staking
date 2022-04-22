@@ -1,13 +1,14 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Transfer};
 
-use account::*;
 use context::*;
 use error::*;
+use reward::*;
 
 pub mod account;
 pub mod context;
 pub mod error;
+pub mod reward;
 
 declare_id!("74Gn5o8MXGWuNgApSz7kkfcdWHGpVAcrgs41ZfW1bHbK");
 
