@@ -114,11 +114,10 @@ impl Member {
 #[account]
 pub struct PendingWithdrawal {
     pub bump: u8,
-    pub burned: bool,
-    pub start_ts: u32,
+    pub active: bool,
     pub end_ts: u32,
     pub amount: u64,
 }
 impl PendingWithdrawal {
-    pub const LEN: usize = 1 + 1 + 4 + 4 + 8;
+    pub const LEN: usize = 1 + 1 + 4 + 8;
 }

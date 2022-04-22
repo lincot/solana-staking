@@ -55,11 +55,13 @@ pub mod staking_factory {
         Ok(())
     }
 
-    pub fn create_member(ctx: Context<CreateMember>) -> Result<()> {
+    pub fn register_member(ctx: Context<RegisterMember>) -> Result<()> {
         ctx.accounts.member.bump = *ctx.bumps.get("member").unwrap();
         ctx.accounts.member.bump_available = *ctx.bumps.get("available").unwrap();
         ctx.accounts.member.bump_stake = *ctx.bumps.get("stake").unwrap();
         ctx.accounts.member.bump_pending = *ctx.bumps.get("pending").unwrap();
+
+        ctx.accounts.pending_withdrawal.bump = *ctx.bumps.get("pending_withdrawal").unwrap();
 
         Ok(())
     }
@@ -135,9 +137,7 @@ pub mod staking_factory {
 
         ctx.accounts.transfer(amount)?;
 
-        ctx.accounts.pending_withdrawal.bump = *ctx.bumps.get("pending_withdrawal").unwrap();
-        ctx.accounts.pending_withdrawal.burned = false;
-        ctx.accounts.pending_withdrawal.start_ts = ts;
+        ctx.accounts.pending_withdrawal.active = true;
         ctx.accounts.pending_withdrawal.end_ts = ts + ctx.accounts.staking.withdrawal_timelock;
         ctx.accounts.pending_withdrawal.amount = amount;
 
@@ -155,7 +155,7 @@ pub mod staking_factory {
 
         ctx.accounts.transfer()?;
 
-        ctx.accounts.pending_withdrawal.burned = true;
+        ctx.accounts.pending_withdrawal.active = false;
 
         Ok(())
     }

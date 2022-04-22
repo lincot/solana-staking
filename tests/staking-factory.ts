@@ -162,6 +162,7 @@ describe("staking", () => {
   });
 
   let member: PublicKey;
+  let pendingWithdrawal: PublicKey;
   let available: PublicKey;
   let stake: PublicKey;
   let pending: PublicKey;
@@ -175,6 +176,11 @@ describe("staking", () => {
       ],
       stakingFactory.programId,
     );
+    [pendingWithdrawal] = await PublicKey
+      .findProgramAddress(
+        [Buffer.from("pending_withdrawal"), member.toBuffer()],
+        stakingFactory.programId,
+      );
 
     [available] = await PublicKey.findProgramAddress(
       [
@@ -198,10 +204,11 @@ describe("staking", () => {
       stakingFactory.programId,
     );
 
-    await stakingFactory.methods.createMember().accounts({
+    await stakingFactory.methods.registerMember().accounts({
       staking,
       mint,
       member,
+      pendingWithdrawal,
       beneficiary: beneficiary.publicKey,
       available,
       stake,
@@ -269,7 +276,7 @@ describe("staking", () => {
   });
 
   it("waits", async () => {
-    await sleep(2000);
+    await sleep(3000);
   });
 
   it("claims reward", async () => {
@@ -301,15 +308,7 @@ describe("staking", () => {
     expect(factoryVaultAccount.amount).to.eq(BigInt(1));
   });
 
-  let pendingWithdrawal: PublicKey;
-
   it("starts unstake", async () => {
-    [pendingWithdrawal] = await PublicKey
-      .findProgramAddress(
-        [Buffer.from("pending_withdrawal"), member.toBuffer()],
-        stakingFactory.programId,
-      );
-
     await stakingFactory.methods.startUnstake(new BN(100)).accounts({
       staking,
       pendingWithdrawal,

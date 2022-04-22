@@ -48,8 +48,8 @@ pub struct ChangeConfig<'info> {
 }
 
 #[derive(Accounts)]
-pub struct CreateMember<'info> {
-    pub staking: Box<Account<'info, Staking>>,
+pub struct RegisterMember<'info> {
+    pub staking: Account<'info, Staking>,
     #[account(address = staking.mint)]
     pub mint: Account<'info, Mint>,
     #[account(
@@ -60,6 +60,14 @@ pub struct CreateMember<'info> {
         space = 8 + Member::LEN,
     )]
     pub member: Account<'info, Member>,
+    #[account(
+        init,
+        payer = beneficiary,
+        seeds = [b"pending_withdrawal", member.key().as_ref()],
+        bump,
+        space = 8 + PendingWithdrawal::LEN,
+    )]
+    pub pending_withdrawal: Account<'info, PendingWithdrawal>,
     #[account(mut)]
     pub beneficiary: Signer<'info>,
     #[account(
@@ -154,20 +162,18 @@ pub struct ClaimReward<'info> {
 pub struct StartUnstake<'info> {
     pub staking: Account<'info, Staking>,
     #[account(
-        init_if_needed,
-        payer = beneficiary,
-        seeds = [b"pending_withdrawal", member.key().as_ref()],
-        bump,
-        space = 8 + PendingWithdrawal::LEN,
-    )]
-    pub pending_withdrawal: Account<'info, PendingWithdrawal>,
-    #[account(
         mut,
         seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()],
         bump = member.bump,
     )]
     pub member: Account<'info, Member>,
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"pending_withdrawal", member.key().as_ref()],
+        bump = pending_withdrawal.bump,
+        constraint = !pending_withdrawal.active,
+    )]
+    pub pending_withdrawal: Account<'info, PendingWithdrawal>,
     pub beneficiary: Signer<'info>,
     #[account(mut, seeds = [b"stake", member.key().as_ref()], bump = member.bump_stake)]
     pub stake: Account<'info, TokenAccount>,
@@ -190,7 +196,7 @@ pub struct EndUnstake<'info> {
         mut,
         seeds = [b"pending_withdrawal", member.key().as_ref()],
         bump = pending_withdrawal.bump,
-        constraint = !pending_withdrawal.burned
+        constraint = pending_withdrawal.active,
     )]
     pub pending_withdrawal: Account<'info, PendingWithdrawal>,
     #[account(mut, seeds = [b"available", member.key().as_ref()], bump = member.bump_available)]
