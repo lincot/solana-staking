@@ -32,6 +32,8 @@ pub mod staking_factory {
         withdrawal_timelock: u32,
         reward_type: RewardType,
     ) -> Result<()> {
+        reward_type.validate_fields()?;
+
         ctx.accounts.staking.bump = *ctx.bumps.get("staking").unwrap();
         ctx.accounts.staking.bump_vault = *ctx.bumps.get("reward_vault").unwrap();
         ctx.accounts.staking.authority = ctx.accounts.authority.key();
@@ -56,6 +58,8 @@ pub mod staking_factory {
             {
                 return err!(StakingError::CannotChangeStakingType);
             }
+
+            new_reward_type.validate_fields()?;
 
             ctx.accounts.staking.reward_type = new_reward_type;
         }

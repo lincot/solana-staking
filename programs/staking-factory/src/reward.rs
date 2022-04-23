@@ -20,6 +20,19 @@ pub enum RewardType {
 impl RewardType {
     pub const LEN: usize = 1 + 8 + 2 + 8;
 
+    pub fn validate_fields(&self) -> Result<()> {
+        match *self {
+            RewardType::InterestRate { denom: 0, .. }
+            | RewardType::Proportional {
+                reward_period: 0, ..
+            }
+            | RewardType::Fixed {
+                required_period: 0, ..
+            } => err!(StakingError::Overflow),
+            _ => Ok(()),
+        }
+    }
+
     pub fn get_reward_amount(
         &self,
         staked_amount: u64,
