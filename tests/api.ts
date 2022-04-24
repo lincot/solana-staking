@@ -21,12 +21,17 @@ export async function createStaking(
   withdrawalTimelock: number,
   rewardType: any
 ): Promise<void> {
+  const stakingId = (await ctx.program.account.factory.fetch(ctx.factory))
+    .stakingsCount;
+  const staking = await ctx.staking(stakingId);
+  const rewardVault = await ctx.rewardVault(staking);
+
   await ctx.program.methods
     .createStaking(ctx.mint, withdrawalTimelock, rewardType)
     .accounts({
       factory: ctx.factory,
-      staking: ctx.staking,
-      rewardVault: ctx.rewardVault,
+      staking,
+      rewardVault,
       rewardMint: ctx.mint,
       authority: ctx.stakingAuthority.publicKey,
       rent: SYSVAR_RENT_PUBKEY,
@@ -35,17 +40,20 @@ export async function createStaking(
     .signers([ctx.stakingAuthority])
     .rpc();
 
-  await mintTo(ctx, ctx.rewardVault, ctx.mintAuthority, 1_000_000);
+  await mintTo(ctx, rewardVault, ctx.mintAuthority, 1_000_000);
 }
 
 export async function changeConfig(
   ctx: Context,
+  stakingId: number | BN,
   rewardType: any
 ): Promise<void> {
+  const staking = await ctx.staking(stakingId);
+
   await ctx.program.methods
     .changeConfig(rewardType)
     .accounts({
-      staking: ctx.staking,
+      staking,
       authority: ctx.stakingAuthority.publicKey,
     })
     .signers([ctx.stakingAuthority])
@@ -54,19 +62,25 @@ export async function changeConfig(
 
 export async function registerMember(
   ctx: Context,
+  stakingId: number | BN,
   beneficiary: Keypair
 ): Promise<void> {
+  const staking = await ctx.staking(stakingId);
+
   await ctx.program.methods
     .registerMember()
     .accounts({
-      staking: ctx.staking,
+      staking,
       stakeMint: ctx.mint,
-      member: await ctx.member(beneficiary.publicKey),
-      pendingWithdrawal: await ctx.pendingWithdrawal(beneficiary.publicKey),
+      member: await ctx.member(beneficiary.publicKey, stakingId),
+      pendingWithdrawal: await ctx.pendingWithdrawal(
+        beneficiary.publicKey,
+        stakingId
+      ),
       beneficiary: beneficiary.publicKey,
-      available: await ctx.available(beneficiary.publicKey),
-      stake: await ctx.stake(beneficiary.publicKey),
-      pending: await ctx.pending(beneficiary.publicKey),
+      available: await ctx.available(beneficiary.publicKey, stakingId),
+      stake: await ctx.stake(beneficiary.publicKey, stakingId),
+      pending: await ctx.pending(beneficiary.publicKey, stakingId),
       rent: SYSVAR_RENT_PUBKEY,
       tokenProgram: TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
@@ -77,16 +91,19 @@ export async function registerMember(
 
 export async function deposit(
   ctx: Context,
+  stakingId: number | BN,
   beneficiary: Keypair,
   amount: number | BN
 ): Promise<void> {
+  const staking = await ctx.staking(stakingId);
+
   await ctx.program.methods
     .deposit(new BN(amount))
     .accounts({
-      staking: ctx.staking,
-      member: await ctx.member(beneficiary.publicKey),
+      staking,
+      member: await ctx.member(beneficiary.publicKey, stakingId),
       beneficiary: beneficiary.publicKey,
-      available: await ctx.available(beneficiary.publicKey),
+      available: await ctx.available(beneficiary.publicKey, stakingId),
       depositor: await findATA(ctx, beneficiary.publicKey, ctx.mint),
       tokenProgram: TOKEN_PROGRAM_ID,
     })
@@ -96,17 +113,20 @@ export async function deposit(
 
 export async function stake(
   ctx: Context,
+  stakingId: number | BN,
   beneficiary: Keypair,
   amount: number | BN
 ): Promise<void> {
+  const staking = await ctx.staking(stakingId);
+
   await ctx.program.methods
     .stake(new BN(amount))
     .accounts({
-      staking: ctx.staking,
-      member: await ctx.member(beneficiary.publicKey),
+      staking,
+      member: await ctx.member(beneficiary.publicKey, stakingId),
       beneficiary: beneficiary.publicKey,
-      available: await ctx.available(beneficiary.publicKey),
-      stake: await ctx.stake(beneficiary.publicKey),
+      available: await ctx.available(beneficiary.publicKey, stakingId),
+      stake: await ctx.stake(beneficiary.publicKey, stakingId),
       tokenProgram: TOKEN_PROGRAM_ID,
     })
     .signers([beneficiary])
@@ -115,17 +135,21 @@ export async function stake(
 
 export async function claimReward(
   ctx: Context,
+  stakingId: number | BN,
   beneficiary: Keypair
 ): Promise<void> {
+  const staking = await ctx.staking(stakingId);
+  const rewardVault = await ctx.rewardVault(staking);
+
   await ctx.program.methods
     .claimReward()
     .accounts({
       factory: ctx.factory,
-      staking: ctx.staking,
-      member: await ctx.member(beneficiary.publicKey),
+      staking,
+      member: await ctx.member(beneficiary.publicKey, stakingId),
       beneficiary: beneficiary.publicKey,
-      stake: await ctx.stake(beneficiary.publicKey),
-      rewardVault: ctx.rewardVault,
+      stake: await ctx.stake(beneficiary.publicKey, stakingId),
+      rewardVault,
       destination: await findATA(ctx, beneficiary.publicKey, ctx.mint),
       factoryVault: ctx.factoryVault,
       tokenProgram: TOKEN_PROGRAM_ID,
@@ -136,18 +160,24 @@ export async function claimReward(
 
 export async function startUnstake(
   ctx: Context,
+  stakingId: number | BN,
   beneficiary: Keypair,
   amount: number | BN
 ): Promise<void> {
+  const staking = await ctx.staking(stakingId);
+
   await ctx.program.methods
     .startUnstake(new BN(amount))
     .accounts({
-      staking: ctx.staking,
-      pendingWithdrawal: await ctx.pendingWithdrawal(beneficiary.publicKey),
-      member: await ctx.member(beneficiary.publicKey),
+      staking,
+      pendingWithdrawal: await ctx.pendingWithdrawal(
+        beneficiary.publicKey,
+        stakingId
+      ),
+      member: await ctx.member(beneficiary.publicKey, stakingId),
       beneficiary: beneficiary.publicKey,
-      stake: await ctx.stake(beneficiary.publicKey),
-      pending: await ctx.pending(beneficiary.publicKey),
+      stake: await ctx.stake(beneficiary.publicKey, stakingId),
+      pending: await ctx.pending(beneficiary.publicKey, stakingId),
       tokenProgram: TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
     })
@@ -157,17 +187,23 @@ export async function startUnstake(
 
 export async function endUnstake(
   ctx: Context,
+  stakingId: number | BN,
   beneficiary: Keypair
 ): Promise<void> {
+  const staking = await ctx.staking(stakingId);
+
   await ctx.program.methods
     .endUnstake()
     .accounts({
-      staking: ctx.staking,
-      member: await ctx.member(beneficiary.publicKey),
+      staking,
+      member: await ctx.member(beneficiary.publicKey, stakingId),
       beneficiary: beneficiary.publicKey,
-      pendingWithdrawal: await ctx.pendingWithdrawal(beneficiary.publicKey),
-      available: await ctx.available(beneficiary.publicKey),
-      pending: await ctx.pending(beneficiary.publicKey),
+      pendingWithdrawal: await ctx.pendingWithdrawal(
+        beneficiary.publicKey,
+        stakingId
+      ),
+      available: await ctx.available(beneficiary.publicKey, stakingId),
+      pending: await ctx.pending(beneficiary.publicKey, stakingId),
       tokenProgram: TOKEN_PROGRAM_ID,
     })
     .signers([beneficiary])
@@ -176,15 +212,18 @@ export async function endUnstake(
 
 export async function withdraw(
   ctx: Context,
+  stakingId: number | BN,
   beneficiary: Keypair
 ): Promise<void> {
+  const staking = await ctx.staking(stakingId);
+
   await ctx.program.methods
     .withdraw(new BN(100))
     .accounts({
-      staking: ctx.staking,
-      member: await ctx.member(beneficiary.publicKey),
+      staking,
+      member: await ctx.member(beneficiary.publicKey, stakingId),
       beneficiary: beneficiary.publicKey,
-      available: await ctx.available(beneficiary.publicKey),
+      available: await ctx.available(beneficiary.publicKey, stakingId),
       destination: await findATA(ctx, beneficiary.publicKey, ctx.mint),
       tokenProgram: TOKEN_PROGRAM_ID,
     })

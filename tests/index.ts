@@ -16,20 +16,25 @@ import {
   startUnstake,
   withdraw,
 } from "./api";
+import { burnAll, mintTo } from "./token";
 
 chai.use(chaiAsPromised);
 
-describe("staking", () => {
-  const ctx = new Context();
+const ctx = new Context();
 
+describe("setup", () => {
   it("setups", async () => {
     await ctx.setup();
   });
+});
 
+describe("factory", () => {
   it("initializes", async () => {
     await initialize(ctx);
   });
+});
 
+describe("interest rate", () => {
   it("creates staking", async () => {
     await createStaking(ctx, 2, {
       interestRate: { num: new BN(1337), denom: new BN(100) },
@@ -37,35 +42,41 @@ describe("staking", () => {
   });
 
   it("changes config", async () => {
-    await changeConfig(ctx, {
+    await changeConfig(ctx, 0, {
       interestRate: { num: new BN(10), denom: new BN(100) },
     });
   });
 
   it("registers member", async () => {
-    await registerMember(ctx, ctx.beneficiary);
+    await registerMember(ctx, 0, ctx.beneficiary);
+    await mintTo(
+      ctx,
+      await ctx.findATA(ctx.beneficiary.publicKey),
+      ctx.mintAuthority,
+      100
+    );
   });
 
   it("deposits", async () => {
-    await deposit(ctx, ctx.beneficiary, 100);
+    await deposit(ctx, 0, ctx.beneficiary, 100);
 
     expect(
-      await (await ctx.available(ctx.beneficiary.publicKey)).amount(ctx)
+      await (await ctx.available(ctx.beneficiary.publicKey, 0)).amount(ctx)
     ).to.eql(BigInt(100));
   });
 
   it("fails to claim reward before staking", async () => {
-    await expect(claimReward(ctx, ctx.beneficiary)).to.be.rejected;
+    await expect(claimReward(ctx, 0, ctx.beneficiary)).to.be.rejected;
   });
 
   it("stakes", async () => {
-    await stake(ctx, ctx.beneficiary, 100);
+    await stake(ctx, 0, ctx.beneficiary, 100);
 
     expect(
-      await (await ctx.available(ctx.beneficiary.publicKey)).amount(ctx)
+      await (await ctx.available(ctx.beneficiary.publicKey, 0)).amount(ctx)
     ).to.eql(BigInt(0));
     expect(
-      await (await ctx.stake(ctx.beneficiary.publicKey)).amount(ctx)
+      await (await ctx.stake(ctx.beneficiary.publicKey, 0)).amount(ctx)
     ).to.eql(BigInt(100));
   });
 
@@ -74,7 +85,7 @@ describe("staking", () => {
   });
 
   it("claims reward", async () => {
-    await claimReward(ctx, ctx.beneficiary);
+    await claimReward(ctx, 0, ctx.beneficiary);
 
     expect(
       await (await ctx.findATA(ctx.beneficiary.publicKey)).amount(ctx)
@@ -83,18 +94,18 @@ describe("staking", () => {
   });
 
   it("starts unstake", async () => {
-    await startUnstake(ctx, ctx.beneficiary, 100);
+    await startUnstake(ctx, 0, ctx.beneficiary, 100);
 
     expect(
-      await (await ctx.stake(ctx.beneficiary.publicKey)).amount(ctx)
+      await (await ctx.stake(ctx.beneficiary.publicKey, 0)).amount(ctx)
     ).to.eql(BigInt(0));
     expect(
-      await (await ctx.pending(ctx.beneficiary.publicKey)).amount(ctx)
+      await (await ctx.pending(ctx.beneficiary.publicKey, 0)).amount(ctx)
     ).to.eql(BigInt(100));
   });
 
   it("fails to end unstake before timelock", async () => {
-    await expect(endUnstake(ctx, ctx.beneficiary)).to.be.rejected;
+    await expect(endUnstake(ctx, 0, ctx.beneficiary)).to.be.rejected;
   });
 
   it("waits for unstake timelock to end", async () => {
@@ -102,18 +113,117 @@ describe("staking", () => {
   });
 
   it("ends unstake", async () => {
-    await endUnstake(ctx, ctx.beneficiary);
+    await endUnstake(ctx, 0, ctx.beneficiary);
 
     expect(
-      await (await ctx.available(ctx.beneficiary.publicKey)).amount(ctx)
+      await (await ctx.available(ctx.beneficiary.publicKey, 0)).amount(ctx)
     ).to.eql(BigInt(100));
   });
 
   it("withdraws", async () => {
-    await withdraw(ctx, ctx.beneficiary);
+    await withdraw(ctx, 0, ctx.beneficiary);
 
     expect(
       await (await ctx.findATA(ctx.beneficiary.publicKey)).amount(ctx)
     ).to.be.oneOf([BigInt(139), BigInt(149), BigInt(159)]);
+  });
+});
+
+describe("proportional", () => {
+  it("creates staking", async () => {
+    await createStaking(ctx, 2, {
+      proportional: { totalAmount: new BN(100), rewardPeriod: new BN(3) },
+    });
+    await burnAll(
+      ctx,
+      await ctx.findATA(ctx.factoryAuthority.publicKey),
+      ctx.factoryAuthority
+    );
+  });
+
+  it("registers member", async () => {
+    await registerMember(ctx, 1, ctx.beneficiary);
+    await burnAll(
+      ctx,
+      await ctx.findATA(ctx.beneficiary.publicKey),
+      ctx.beneficiary
+    );
+    await mintTo(
+      ctx,
+      await ctx.findATA(ctx.beneficiary.publicKey),
+      ctx.mintAuthority,
+      100
+    );
+  });
+
+  it("deposits", async () => {
+    await deposit(ctx, 1, ctx.beneficiary, 100);
+
+    expect(
+      await (await ctx.available(ctx.beneficiary.publicKey, 1)).amount(ctx)
+    ).to.eql(BigInt(100));
+  });
+
+  it("fails to claim reward before staking", async () => {
+    await expect(claimReward(ctx, 1, ctx.beneficiary)).to.be.rejected;
+  });
+
+  it("stakes", async () => {
+    await stake(ctx, 1, ctx.beneficiary, 100);
+
+    expect(
+      await (await ctx.available(ctx.beneficiary.publicKey, 1)).amount(ctx)
+    ).to.eql(BigInt(0));
+    expect(
+      await (await ctx.stake(ctx.beneficiary.publicKey, 1)).amount(ctx)
+    ).to.eql(BigInt(100));
+  });
+
+  it("waits", async () => {
+    await sleep(3000);
+  });
+
+  it("claims reward", async () => {
+    await claimReward(ctx, 1, ctx.beneficiary);
+
+    expect(
+      await (await ctx.findATA(ctx.beneficiary.publicKey)).amount(ctx)
+    ).to.eql(BigInt(97));
+    expect(await ctx.factoryVault.amount(ctx)).to.eql(BigInt(3));
+  });
+
+  it("starts unstake", async () => {
+    await startUnstake(ctx, 1, ctx.beneficiary, 100);
+
+    expect(
+      await (await ctx.stake(ctx.beneficiary.publicKey, 1)).amount(ctx)
+    ).to.eql(BigInt(0));
+    expect(
+      await (await ctx.pending(ctx.beneficiary.publicKey, 1)).amount(ctx)
+    ).to.eql(BigInt(100));
+  });
+
+  it("fails to end unstake before timelock", async () => {
+    await expect(endUnstake(ctx, 1, ctx.beneficiary)).to.be.rejected;
+  });
+
+  it("waits for unstake timelock to end", async () => {
+    await sleep(2000);
+  });
+
+  it("ends unstake", async () => {
+    await endUnstake(ctx, 1, ctx.beneficiary);
+
+    expect(
+      await (await ctx.available(ctx.beneficiary.publicKey, 1)).amount(ctx)
+    ).to.eql(BigInt(100));
+  });
+
+  it("withdraws", async () => {
+    await withdraw(ctx, 1, ctx.beneficiary);
+
+    expect(
+      await (await ctx.findATA(ctx.beneficiary.publicKey)).amount(ctx)
+    ).to.eql(BigInt(197));
   });
 });

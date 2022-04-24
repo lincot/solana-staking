@@ -1,4 +1,5 @@
 import {
+  burn,
   getAccount,
   getOrCreateAssociatedTokenAccount,
 } from "@solana/spl-token";
@@ -14,7 +15,7 @@ export class TokenAccount extends PublicKey {
     this.mint = mint;
   }
 
-  async amount(ctx: Context): Promise<BigInt> {
+  async amount(ctx: Context): Promise<bigint> {
     return (await getAccount(ctx.connection, this)).amount;
   }
 }
@@ -64,4 +65,19 @@ export async function findATA(
   ).address;
 
   return new TokenAccount(address, mint);
+}
+
+export async function burnAll(
+  ctx: Context,
+  from: TokenAccount,
+  owner: Keypair
+): Promise<void> {
+  await burn(
+    ctx.connection,
+    ctx.payer,
+    from,
+    from.mint,
+    owner,
+    await from.amount(ctx)
+  );
 }
