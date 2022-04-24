@@ -62,7 +62,7 @@ describe("interest rate", () => {
 
     expect(
       await (await ctx.available(ctx.beneficiary.publicKey, 0)).amount(ctx)
-    ).to.eql(BigInt(100));
+    ).to.eql(100);
   });
 
   it("fails to claim reward before staking", async () => {
@@ -74,10 +74,10 @@ describe("interest rate", () => {
 
     expect(
       await (await ctx.available(ctx.beneficiary.publicKey, 0)).amount(ctx)
-    ).to.eql(BigInt(0));
+    ).to.eql(0);
     expect(
       await (await ctx.stake(ctx.beneficiary.publicKey, 0)).amount(ctx)
-    ).to.eql(BigInt(100));
+    ).to.eql(100);
   });
 
   it("waits", async () => {
@@ -89,8 +89,8 @@ describe("interest rate", () => {
 
     expect(
       await (await ctx.findATA(ctx.beneficiary.publicKey)).amount(ctx)
-    ).to.be.oneOf([BigInt(39), BigInt(49), BigInt(59)]);
-    expect(await ctx.factoryVault.amount(ctx)).to.eql(BigInt(1));
+    ).to.be.oneOf([39, 49, 59]);
+    expect(await ctx.factoryVault.amount(ctx)).to.eql(1);
   });
 
   it("starts unstake", async () => {
@@ -98,10 +98,10 @@ describe("interest rate", () => {
 
     expect(
       await (await ctx.stake(ctx.beneficiary.publicKey, 0)).amount(ctx)
-    ).to.eql(BigInt(0));
+    ).to.eql(0);
     expect(
       await (await ctx.pending(ctx.beneficiary.publicKey, 0)).amount(ctx)
-    ).to.eql(BigInt(100));
+    ).to.eql(100);
   });
 
   it("fails to end unstake before timelock", async () => {
@@ -117,7 +117,7 @@ describe("interest rate", () => {
 
     expect(
       await (await ctx.available(ctx.beneficiary.publicKey, 0)).amount(ctx)
-    ).to.eql(BigInt(100));
+    ).to.eql(100);
   });
 
   it("withdraws", async () => {
@@ -125,7 +125,7 @@ describe("interest rate", () => {
 
     expect(
       await (await ctx.findATA(ctx.beneficiary.publicKey)).amount(ctx)
-    ).to.be.oneOf([BigInt(139), BigInt(149), BigInt(159)]);
+    ).to.be.oneOf([139, 149, 159]);
   });
 });
 
@@ -161,7 +161,7 @@ describe("proportional", () => {
 
     expect(
       await (await ctx.available(ctx.beneficiary.publicKey, 1)).amount(ctx)
-    ).to.eql(BigInt(100));
+    ).to.eql(100);
   });
 
   it("fails to claim reward before staking", async () => {
@@ -173,10 +173,10 @@ describe("proportional", () => {
 
     expect(
       await (await ctx.available(ctx.beneficiary.publicKey, 1)).amount(ctx)
-    ).to.eql(BigInt(0));
+    ).to.eql(0);
     expect(
       await (await ctx.stake(ctx.beneficiary.publicKey, 1)).amount(ctx)
-    ).to.eql(BigInt(100));
+    ).to.eql(100);
   });
 
   it("waits", async () => {
@@ -188,8 +188,8 @@ describe("proportional", () => {
 
     expect(
       await (await ctx.findATA(ctx.beneficiary.publicKey)).amount(ctx)
-    ).to.eql(BigInt(97));
-    expect(await ctx.factoryVault.amount(ctx)).to.eql(BigInt(3));
+    ).to.eql(97);
+    expect(await ctx.factoryVault.amount(ctx)).to.eql(3);
   });
 
   it("starts unstake", async () => {
@@ -197,10 +197,10 @@ describe("proportional", () => {
 
     expect(
       await (await ctx.stake(ctx.beneficiary.publicKey, 1)).amount(ctx)
-    ).to.eql(BigInt(0));
+    ).to.eql(0);
     expect(
       await (await ctx.pending(ctx.beneficiary.publicKey, 1)).amount(ctx)
-    ).to.eql(BigInt(100));
+    ).to.eql(100);
   });
 
   it("fails to end unstake before timelock", async () => {
@@ -216,7 +216,7 @@ describe("proportional", () => {
 
     expect(
       await (await ctx.available(ctx.beneficiary.publicKey, 1)).amount(ctx)
-    ).to.eql(BigInt(100));
+    ).to.eql(100);
   });
 
   it("withdraws", async () => {
@@ -224,6 +224,6 @@ describe("proportional", () => {
 
     expect(
       await (await ctx.findATA(ctx.beneficiary.publicKey)).amount(ctx)
-    ).to.eql(BigInt(197));
+    ).to.eql(197);
   });
 });
