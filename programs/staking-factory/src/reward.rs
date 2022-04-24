@@ -1,5 +1,7 @@
+use crate::account::*;
 use crate::error::*;
 use anchor_lang::prelude::*;
+use anchor_spl::token::TokenAccount;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone, Debug)]
 pub enum RewardType {
@@ -21,33 +23,48 @@ impl RewardType {
     pub const LEN: usize = 1 + 8 + 2 + 8;
 
     pub fn validate_fields(&self) -> Result<()> {
-        match *self {
-            RewardType::InterestRate { denom: 0, .. }
-            | RewardType::Proportional {
-                reward_period: 0, ..
-            }
-            | RewardType::Fixed {
-                required_period: 0, ..
-            } => err!(StakingError::Overflow),
-            _ => Ok(()),
+        if matches!(
+            *self,
+            Self::InterestRate { denom: 0, .. }
+                | Self::Proportional {
+                    reward_period: 0,
+                    ..
+                }
+                | Self::Fixed {
+                    required_period: 0,
+                    ..
+                }
+        ) {
+            return err!(StakingError::Overflow);
         }
+
+        Ok(())
     }
 
     pub fn get_reward_amount(
         &self,
         staked_amount: u64,
         stakes_sum: u64,
-        ts: u32,
         last_reward_ts: &mut u32,
+        current_ts: u32,
+        config_start_ts: u32,
+        config_end_ts: u32,
     ) -> Result<u64> {
         if *last_reward_ts == 0 {
-            *last_reward_ts = ts;
+            *last_reward_ts = current_ts;
+            return Ok(0);
+        }
+
+        let start_ts = config_start_ts.max(*last_reward_ts);
+        let end_ts = config_end_ts.min(current_ts);
+
+        if start_ts >= end_ts {
             return Ok(0);
         }
 
         let reward_amount = match *self {
-            RewardType::InterestRate { num, denom } => {
-                let rewards_count = ts - *last_reward_ts;
+            Self::InterestRate { num, denom } => {
+                let rewards_count = end_ts - start_ts;
                 *last_reward_ts += rewards_count;
 
                 staked_amount
@@ -57,11 +74,12 @@ impl RewardType {
                     .ok_or(StakingError::Overflow)?
                     / denom
             }
-            RewardType::Proportional {
+            Self::Proportional {
                 total_amount,
                 reward_period,
+                ..
             } => {
-                let rewards_count = (ts - *last_reward_ts) / reward_period;
+                let rewards_count = (end_ts - start_ts) / reward_period;
                 *last_reward_ts += rewards_count * reward_period;
 
                 staked_amount
@@ -71,7 +89,7 @@ impl RewardType {
                     .ok_or(StakingError::Overflow)?
                     / stakes_sum
             }
-            RewardType::Fixed {
+            Self::Fixed {
                 required_amount,
                 required_period,
                 reward_amount,
@@ -80,7 +98,7 @@ impl RewardType {
                     return Ok(0);
                 }
 
-                let rewards_count = (ts - *last_reward_ts) / required_period;
+                let rewards_count = (end_ts - start_ts) / required_period;
                 *last_reward_ts += rewards_count * required_period;
 
                 reward_amount
@@ -91,4 +109,44 @@ impl RewardType {
 
         Ok(reward_amount)
     }
+}
+
+impl Default for RewardType {
+    fn default() -> Self {
+        Self::Fixed {
+            required_amount: 1,
+            required_period: 1,
+            reward_amount: 1,
+        }
+    }
+}
+
+pub fn calculate_rewards(
+    staking: &Account<Staking>,
+    config_history: &Account<ConfigHistory>,
+    member: &mut Account<Member>,
+    stake: &Account<TokenAccount>,
+    current_ts: u32,
+) -> Result<u64> {
+    let mut res = 0u64;
+
+    for i in 0..config_history.len {
+        let reward_amount = (config_history.reward_types[i as usize]).get_reward_amount(
+            stake.amount,
+            staking.stakes_sum,
+            &mut member.last_reward_ts,
+            current_ts,
+            config_history.start_timestamps[i as usize],
+            if i + 1 == config_history.len {
+                u32::MAX
+            } else {
+                config_history.start_timestamps[(i + 1) as usize]
+            },
+        )?;
+        res = res
+            .checked_add(reward_amount)
+            .ok_or(StakingError::Overflow)?;
+    }
+
+    Ok(res)
 }

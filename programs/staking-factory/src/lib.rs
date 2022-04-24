@@ -32,6 +32,8 @@ pub mod staking_factory {
         withdrawal_timelock: u32,
         reward_type: RewardType,
     ) -> Result<()> {
+        let ts = Clock::get()?.unix_timestamp as u32;
+
         reward_type.validate_fields()?;
 
         ctx.accounts.staking.bump = *ctx.bumps.get("staking").unwrap();
@@ -43,6 +45,11 @@ pub mod staking_factory {
         ctx.accounts.staking.withdrawal_timelock = withdrawal_timelock;
         ctx.accounts.staking.reward_type = reward_type;
 
+        ctx.accounts.config_history.bump = *ctx.bumps.get("config_history").unwrap();
+        ctx.accounts.config_history.len = 1;
+        ctx.accounts.config_history.reward_types[0] = reward_type;
+        ctx.accounts.config_history.start_timestamps[0] = ts;
+
         ctx.accounts.factory.stakings_count += 1;
 
         Ok(())
@@ -52,6 +59,8 @@ pub mod staking_factory {
         ctx: Context<ChangeConfig>,
         new_reward_type: Option<RewardType>,
     ) -> Result<()> {
+        let ts = Clock::get()?.unix_timestamp as u32;
+
         if let Some(new_reward_type) = new_reward_type {
             if std::mem::discriminant(&ctx.accounts.staking.reward_type)
                 != std::mem::discriminant(&new_reward_type)
@@ -62,6 +71,11 @@ pub mod staking_factory {
             new_reward_type.validate_fields()?;
 
             ctx.accounts.staking.reward_type = new_reward_type;
+
+            let len = ctx.accounts.config_history.len as usize;
+            ctx.accounts.config_history.reward_types[len] = new_reward_type;
+            ctx.accounts.config_history.start_timestamps[len] = ts;
+            ctx.accounts.config_history.len += 1;
         }
 
         Ok(())
@@ -87,13 +101,15 @@ pub mod staking_factory {
     pub fn stake(ctx: Context<Stake>, amount: u64) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp as u32;
 
+        let rewards = calculate_rewards(
+            &ctx.accounts.staking,
+            &ctx.accounts.config_history,
+            &mut ctx.accounts.member,
+            &ctx.accounts.stake,
+            ts,
+        )?;
         ctx.accounts.member.unclaimed_rewards = (ctx.accounts.member.unclaimed_rewards)
-            .checked_add((ctx.accounts.staking.reward_type).get_reward_amount(
-                ctx.accounts.stake.amount,
-                ctx.accounts.staking.stakes_sum,
-                ts,
-                &mut ctx.accounts.member.last_reward_ts,
-            )?)
+            .checked_add(rewards)
             .ok_or(StakingError::Overflow)?;
 
         ctx.accounts.transfer(amount)?;
@@ -108,13 +124,15 @@ pub mod staking_factory {
     pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp as u32;
 
-        let total_amount = ctx.accounts.staking.reward_type.get_reward_amount(
-            ctx.accounts.stake.amount,
-            ctx.accounts.staking.stakes_sum,
+        let rewards = calculate_rewards(
+            &ctx.accounts.staking,
+            &ctx.accounts.config_history,
+            &mut ctx.accounts.member,
+            &ctx.accounts.stake,
             ts,
-            &mut ctx.accounts.member.last_reward_ts,
         )?;
-        let total_amount = total_amount
+
+        let total_amount = rewards
             .checked_add(ctx.accounts.member.unclaimed_rewards)
             .ok_or(StakingError::Overflow)?;
         if total_amount == 0 {
@@ -138,13 +156,15 @@ pub mod staking_factory {
     pub fn start_unstake(ctx: Context<StartUnstake>, amount: u64) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp as u32;
 
+        let rewards = calculate_rewards(
+            &ctx.accounts.staking,
+            &ctx.accounts.config_history,
+            &mut ctx.accounts.member,
+            &ctx.accounts.stake,
+            ts,
+        )?;
         ctx.accounts.member.unclaimed_rewards = (ctx.accounts.member.unclaimed_rewards)
-            .checked_add((ctx.accounts.staking.reward_type).get_reward_amount(
-                ctx.accounts.stake.amount,
-                ctx.accounts.staking.stakes_sum,
-                ts,
-                &mut ctx.accounts.member.last_reward_ts,
-            )?)
+            .checked_add(rewards)
             .ok_or(StakingError::Overflow)?;
 
         ctx.accounts.transfer(amount)?;

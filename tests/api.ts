@@ -25,6 +25,7 @@ export async function createStaking(
     .stakingsCount;
   const staking = await ctx.staking(stakingId);
   const rewardVault = await ctx.rewardVault(staking);
+  const configHistory = await ctx.configHistory(staking);
 
   await ctx.program.methods
     .createStaking(ctx.mint, withdrawalTimelock, rewardType)
@@ -32,6 +33,7 @@ export async function createStaking(
       factory: ctx.factory,
       staking,
       rewardVault,
+      configHistory,
       rewardMint: ctx.mint,
       authority: ctx.stakingAuthority.publicKey,
       rent: SYSVAR_RENT_PUBKEY,
@@ -49,11 +51,13 @@ export async function changeConfig(
   rewardType: any
 ): Promise<void> {
   const staking = await ctx.staking(stakingId);
+  const configHistory = await ctx.configHistory(staking);
 
   await ctx.program.methods
     .changeConfig(rewardType)
     .accounts({
       staking,
+      configHistory,
       authority: ctx.stakingAuthority.publicKey,
     })
     .signers([ctx.stakingAuthority])
@@ -118,11 +122,13 @@ export async function stake(
   amount: number | BN
 ): Promise<void> {
   const staking = await ctx.staking(stakingId);
+  const configHistory = await ctx.configHistory(staking);
 
   await ctx.program.methods
     .stake(new BN(amount))
     .accounts({
       staking,
+      configHistory,
       member: await ctx.member(beneficiary.publicKey, stakingId),
       beneficiary: beneficiary.publicKey,
       available: await ctx.available(beneficiary.publicKey, stakingId),
@@ -140,12 +146,14 @@ export async function claimReward(
 ): Promise<void> {
   const staking = await ctx.staking(stakingId);
   const rewardVault = await ctx.rewardVault(staking);
+  const configHistory = await ctx.configHistory(staking);
 
   await ctx.program.methods
     .claimReward()
     .accounts({
       factory: ctx.factory,
       staking,
+      configHistory,
       member: await ctx.member(beneficiary.publicKey, stakingId),
       beneficiary: beneficiary.publicKey,
       stake: await ctx.stake(beneficiary.publicKey, stakingId),
@@ -165,11 +173,13 @@ export async function startUnstake(
   amount: number | BN
 ): Promise<void> {
   const staking = await ctx.staking(stakingId);
+  const configHistory = await ctx.configHistory(staking);
 
   await ctx.program.methods
     .startUnstake(new BN(amount))
     .accounts({
       staking,
+      configHistory,
       pendingWithdrawal: await ctx.pendingWithdrawal(
         beneficiary.publicKey,
         stakingId

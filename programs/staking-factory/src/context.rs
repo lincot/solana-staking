@@ -32,7 +32,15 @@ pub struct CreateStaking<'info> {
         token::authority = staking,
         token::mint = reward_mint,
     )]
-    pub reward_vault: Account<'info, TokenAccount>,
+    pub reward_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        init,
+        payer = authority,
+        seeds = [b"config_history", staking.key().as_ref()],
+        bump,
+        space = 8 + ConfigHistory::LEN,
+   )]
+    pub config_history: Box<Account<'info, ConfigHistory>>,
     #[account(mut)]
     pub authority: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -44,6 +52,8 @@ pub struct CreateStaking<'info> {
 pub struct ChangeConfig<'info> {
     #[account(mut, has_one = authority)]
     pub staking: Account<'info, Staking>,
+    #[account(mut, seeds = [b"config_history", staking.key().as_ref()], bump = config_history.bump)]
+    pub config_history: Box<Account<'info, ConfigHistory>>,
     pub authority: Signer<'info>,
 }
 
@@ -122,6 +132,8 @@ pub struct Deposit<'info> {
 pub struct Stake<'info> {
     #[account(mut)]
     pub staking: Account<'info, Staking>,
+    #[account(seeds = [b"config_history", staking.key().as_ref()], bump = config_history.bump)]
+    pub config_history: Box<Account<'info, ConfigHistory>>,
     #[account(
         mut,
         seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()],
@@ -141,6 +153,8 @@ pub struct ClaimReward<'info> {
     #[account(seeds = [b"factory"], bump = factory.bump)]
     pub factory: Box<Account<'info, Factory>>,
     pub staking: Account<'info, Staking>,
+    #[account(seeds = [b"config_history", staking.key().as_ref()], bump = config_history.bump)]
+    pub config_history: Box<Account<'info, ConfigHistory>>,
     #[account(
         seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()],
         bump = member.bump,
@@ -161,6 +175,8 @@ pub struct ClaimReward<'info> {
 #[derive(Accounts)]
 pub struct StartUnstake<'info> {
     pub staking: Account<'info, Staking>,
+    #[account(seeds = [b"config_history", staking.key().as_ref()], bump = config_history.bump)]
+    pub config_history: Box<Account<'info, ConfigHistory>>,
     #[account(
         mut,
         seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()],

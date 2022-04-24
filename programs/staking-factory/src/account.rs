@@ -28,6 +28,17 @@ impl Staking {
 }
 
 #[account]
+pub struct ConfigHistory {
+    pub bump: u8,
+    pub len: u8,
+    pub reward_types: [RewardType; 32],
+    pub start_timestamps: [u32; 32],
+}
+impl ConfigHistory {
+    pub const LEN: usize = 1 + 1 + (RewardType::LEN + 4) * 32;
+}
+
+#[account]
 pub struct Member {
     pub bump: u8,
     pub bump_available: u8,

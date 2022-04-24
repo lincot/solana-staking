@@ -64,6 +64,13 @@ export class Context {
     );
   }
 
+  async configHistory(staking: PublicKey): Promise<PublicKey> {
+    return await findPDA(this, [
+      Buffer.from("config_history"),
+      staking.toBuffer(),
+    ]);
+  }
+
   async member(user: PublicKey, stakingId: number | BN): Promise<PublicKey> {
     return await findPDA(this, [
       Buffer.from("member"),
