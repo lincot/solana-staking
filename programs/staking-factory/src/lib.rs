@@ -227,7 +227,7 @@ impl<'info> ClaimReward<'info> {
             self.token_program.to_account_info(),
             token::Transfer {
                 from: self.reward_vault.to_account_info(),
-                to: self.to.to_account_info(),
+                to: self.destination.to_account_info(),
                 authority: self.staking.to_account_info(),
             },
             signer,
@@ -310,7 +310,7 @@ impl<'info> Withdraw<'info> {
         let signer = &[&seeds[..]];
         let cpi_accounts = Transfer {
             from: self.available.to_account_info(),
-            to: self.receiver.to_account_info(),
+            to: self.destination.to_account_info(),
             authority: self.member.to_account_info(),
         };
         let cpi_ctx =

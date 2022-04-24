@@ -151,8 +151,8 @@ pub struct ClaimReward<'info> {
     pub stake: Account<'info, TokenAccount>,
     #[account(mut, seeds = [b"reward_vault", staking.key().as_ref()], bump = staking.bump_vault)]
     pub reward_vault: Account<'info, TokenAccount>,
-    #[account(mut, token::authority = beneficiary, token::mint = reward_vault.mint)]
-    pub to: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub destination: Account<'info, TokenAccount>,
     #[account(mut, token::authority = factory.authority, token::mint = reward_vault.mint)]
     pub factory_vault: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
@@ -218,6 +218,6 @@ pub struct Withdraw<'info> {
     #[account(mut, seeds = [b"available", member.key().as_ref()], bump = member.bump_available)]
     pub available: Account<'info, TokenAccount>,
     #[account(mut)]
-    pub receiver: Account<'info, TokenAccount>,
+    pub destination: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
