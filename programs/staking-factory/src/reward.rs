@@ -20,7 +20,7 @@ pub enum RewardType {
     },
 }
 impl RewardType {
-    pub const LEN: usize = 1 + 8 + 2 + 8;
+    pub const LEN: usize = 1 + 8 + 4 + 8;
 
     pub fn validate_fields(&self) -> Result<()> {
         if matches!(
@@ -101,8 +101,22 @@ impl RewardType {
                 let rewards_count = (end_ts - start_ts) / required_period;
                 *last_reward_ts += rewards_count * required_period;
 
+                let edge = if current_ts >= config_end_ts {
+                    let part = config_end_ts - *last_reward_ts;
+                    *last_reward_ts = config_end_ts;
+                    reward_amount
+                        .checked_mul(part as u64)
+                        .ok_or(StakingError::Overflow)?
+                        .checked_div(required_period as u64)
+                        .ok_or(StakingError::Overflow)?
+                } else {
+                    0
+                };
+
                 reward_amount
                     .checked_mul(rewards_count as u64)
+                    .ok_or(StakingError::Overflow)?
+                    .checked_add(edge)
                     .ok_or(StakingError::Overflow)?
             }
         };

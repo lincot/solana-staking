@@ -132,7 +132,7 @@ describe("interest rate", () => {
 describe("proportional", () => {
   it("creates staking", async () => {
     await createStaking(ctx, 2, {
-      proportional: { totalAmount: new BN(100), rewardPeriod: new BN(3) },
+      proportional: { totalAmount: new BN(100), rewardPeriod: 3 },
     });
     await burnAll(
       ctx,
@@ -221,6 +221,109 @@ describe("proportional", () => {
 
   it("withdraws", async () => {
     await withdraw(ctx, 1, ctx.beneficiary);
+
+    expect(
+      await (await ctx.findATA(ctx.beneficiary.publicKey)).amount(ctx)
+    ).to.eql(197);
+  });
+});
+
+describe("fixed", () => {
+  it("creates staking", async () => {
+    await createStaking(ctx, 2, {
+      fixed: {
+        requiredAmount: new BN(100),
+        requiredPeriod: 3,
+        rewardAmount: new BN(100),
+      },
+    });
+    await burnAll(
+      ctx,
+      await ctx.findATA(ctx.factoryAuthority.publicKey),
+      ctx.factoryAuthority
+    );
+  });
+
+  it("registers member", async () => {
+    await registerMember(ctx, 2, ctx.beneficiary);
+    await burnAll(
+      ctx,
+      await ctx.findATA(ctx.beneficiary.publicKey),
+      ctx.beneficiary
+    );
+    await mintTo(
+      ctx,
+      await ctx.findATA(ctx.beneficiary.publicKey),
+      ctx.mintAuthority,
+      100
+    );
+  });
+
+  it("deposits", async () => {
+    await deposit(ctx, 2, ctx.beneficiary, 100);
+
+    expect(
+      await (await ctx.available(ctx.beneficiary.publicKey, 2)).amount(ctx)
+    ).to.eql(100);
+  });
+
+  it("fails to claim reward before staking", async () => {
+    await expect(claimReward(ctx, 2, ctx.beneficiary)).to.be.rejected;
+  });
+
+  it("stakes", async () => {
+    await stake(ctx, 2, ctx.beneficiary, 100);
+
+    expect(
+      await (await ctx.available(ctx.beneficiary.publicKey, 2)).amount(ctx)
+    ).to.eql(0);
+    expect(
+      await (await ctx.stake(ctx.beneficiary.publicKey, 2)).amount(ctx)
+    ).to.eql(100);
+  });
+
+  it("waits", async () => {
+    await sleep(3000);
+  });
+
+  it("claims reward", async () => {
+    await claimReward(ctx, 2, ctx.beneficiary);
+
+    expect(
+      await (await ctx.findATA(ctx.beneficiary.publicKey)).amount(ctx)
+    ).to.eql(97);
+    expect(await ctx.factoryVault.amount(ctx)).to.eql(3);
+  });
+
+  it("starts unstake", async () => {
+    await startUnstake(ctx, 2, ctx.beneficiary, 100);
+
+    expect(
+      await (await ctx.stake(ctx.beneficiary.publicKey, 2)).amount(ctx)
+    ).to.eql(0);
+    expect(
+      await (await ctx.pending(ctx.beneficiary.publicKey, 2)).amount(ctx)
+    ).to.eql(100);
+  });
+
+  it("fails to end unstake before timelock", async () => {
+    await expect(endUnstake(ctx, 2, ctx.beneficiary)).to.be.rejected;
+  });
+
+  it("waits for unstake timelock to end", async () => {
+    await sleep(2000);
+  });
+
+  it("ends unstake", async () => {
+    await endUnstake(ctx, 2, ctx.beneficiary);
+
+    expect(
+      await (await ctx.available(ctx.beneficiary.publicKey, 2)).amount(ctx)
+    ).to.eql(100);
+  });
+
+  it("withdraws", async () => {
+    await withdraw(ctx, 2, ctx.beneficiary);
 
     expect(
       await (await ctx.findATA(ctx.beneficiary.publicKey)).amount(ctx)
