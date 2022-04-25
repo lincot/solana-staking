@@ -50,6 +50,8 @@ pub mod staking_factory {
         ctx.accounts.config_history.reward_types[0] = reward_type;
         ctx.accounts.config_history.start_timestamps[0] = ts;
 
+        ctx.accounts.stakes_history.bump = *ctx.bumps.get("stakes_history").unwrap();
+
         ctx.accounts.factory.stakings_count += 1;
 
         Ok(())
@@ -76,6 +78,8 @@ pub mod staking_factory {
             ctx.accounts.config_history.reward_types[len] = new_reward_type;
             ctx.accounts.config_history.start_timestamps[len] = ts;
             ctx.accounts.config_history.len += 1;
+
+            ctx.accounts.stakes_history.bump = *ctx.bumps.get("stakes_history").unwrap();
         }
 
         Ok(())
@@ -102,11 +106,12 @@ pub mod staking_factory {
         let ts = Clock::get()?.unix_timestamp as u32;
 
         let rewards = calculate_rewards(
+            ts,
             &ctx.accounts.staking,
             &ctx.accounts.config_history,
             &mut ctx.accounts.member,
             &ctx.accounts.stake,
-            ts,
+            ctx.remaining_accounts,
         )?;
         ctx.accounts.member.unclaimed_rewards = (ctx.accounts.member.unclaimed_rewards)
             .checked_add(rewards)
@@ -125,11 +130,12 @@ pub mod staking_factory {
         let ts = Clock::get()?.unix_timestamp as u32;
 
         let rewards = calculate_rewards(
+            ts,
             &ctx.accounts.staking,
             &ctx.accounts.config_history,
             &mut ctx.accounts.member,
             &ctx.accounts.stake,
-            ts,
+            ctx.remaining_accounts,
         )?;
 
         let total_amount = rewards
@@ -157,11 +163,12 @@ pub mod staking_factory {
         let ts = Clock::get()?.unix_timestamp as u32;
 
         let rewards = calculate_rewards(
+            ts,
             &ctx.accounts.staking,
             &ctx.accounts.config_history,
             &mut ctx.accounts.member,
             &ctx.accounts.stake,
-            ts,
+            ctx.remaining_accounts,
         )?;
         ctx.accounts.member.unclaimed_rewards = (ctx.accounts.member.unclaimed_rewards)
             .checked_add(rewards)

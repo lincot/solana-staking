@@ -39,6 +39,17 @@ impl ConfigHistory {
 }
 
 #[account]
+pub struct StakesHistory {
+    pub bump: u8,
+    pub len: u8,
+    // for current config
+    pub stakes_sums: [u64; 32],
+}
+impl StakesHistory {
+    pub const LEN: usize = 1 + 1 + 8 * 32;
+}
+
+#[account]
 pub struct Member {
     pub bump: u8,
     pub bump_available: u8,

@@ -26,6 +26,7 @@ export async function createStaking(
   const staking = await ctx.staking(stakingId);
   const rewardVault = await ctx.rewardVault(staking);
   const configHistory = await ctx.configHistory(staking);
+  const stakesHistory = await ctx.stakesHistory(staking, 0);
 
   await ctx.program.methods
     .createStaking(ctx.mint, withdrawalTimelock, rewardType)
@@ -34,6 +35,7 @@ export async function createStaking(
       staking,
       rewardVault,
       configHistory,
+      stakesHistory,
       rewardMint: ctx.mint,
       authority: ctx.stakingAuthority.publicKey,
       rent: SYSVAR_RENT_PUBKEY,
@@ -52,13 +54,18 @@ export async function changeConfig(
 ): Promise<void> {
   const staking = await ctx.staking(stakingId);
   const configHistory = await ctx.configHistory(staking);
+  const epoch = (await ctx.program.account.configHistory.fetch(configHistory))
+    .len;
+  const stakesHistory = await ctx.stakesHistory(staking, epoch);
 
   await ctx.program.methods
     .changeConfig(rewardType)
     .accounts({
       staking,
       configHistory,
+      stakesHistory,
       authority: ctx.stakingAuthority.publicKey,
+      systemProgram: SystemProgram.programId,
     })
     .signers([ctx.stakingAuthority])
     .rpc();
@@ -123,6 +130,18 @@ export async function stake(
 ): Promise<void> {
   const staking = await ctx.staking(stakingId);
   const configHistory = await ctx.configHistory(staking);
+  const epoch = (await ctx.program.account.configHistory.fetch(configHistory))
+    .len;
+
+  const remainingAccounts = [];
+  for (let i = 0; i < epoch; i++) {
+    const stakesHistory = await ctx.stakesHistory(staking, i);
+    remainingAccounts.push({
+      pubkey: stakesHistory,
+      isWritable: true,
+      isSigner: false,
+    });
+  }
 
   await ctx.program.methods
     .stake(new BN(amount))
@@ -135,6 +154,7 @@ export async function stake(
       stake: await ctx.stake(beneficiary.publicKey, stakingId),
       tokenProgram: TOKEN_PROGRAM_ID,
     })
+    .remainingAccounts(remainingAccounts)
     .signers([beneficiary])
     .rpc();
 }
@@ -147,6 +167,18 @@ export async function claimReward(
   const staking = await ctx.staking(stakingId);
   const rewardVault = await ctx.rewardVault(staking);
   const configHistory = await ctx.configHistory(staking);
+  const epoch = (await ctx.program.account.configHistory.fetch(configHistory))
+    .len;
+
+  const remainingAccounts = [];
+  for (let i = 0; i < epoch; i++) {
+    const stakesHistory = await ctx.stakesHistory(staking, i);
+    remainingAccounts.push({
+      pubkey: stakesHistory,
+      isWritable: true,
+      isSigner: false,
+    });
+  }
 
   await ctx.program.methods
     .claimReward()
@@ -162,6 +194,7 @@ export async function claimReward(
       factoryVault: ctx.factoryVault,
       tokenProgram: TOKEN_PROGRAM_ID,
     })
+    .remainingAccounts(remainingAccounts)
     .signers([beneficiary])
     .rpc();
 }
@@ -174,6 +207,18 @@ export async function startUnstake(
 ): Promise<void> {
   const staking = await ctx.staking(stakingId);
   const configHistory = await ctx.configHistory(staking);
+  const epoch = (await ctx.program.account.configHistory.fetch(configHistory))
+    .len;
+
+  const remainingAccounts = [];
+  for (let i = 0; i < epoch; i++) {
+    const stakesHistory = await ctx.stakesHistory(staking, i);
+    remainingAccounts.push({
+      pubkey: stakesHistory,
+      isWritable: true,
+      isSigner: false,
+    });
+  }
 
   await ctx.program.methods
     .startUnstake(new BN(amount))
@@ -191,6 +236,7 @@ export async function startUnstake(
       tokenProgram: TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
     })
+    .remainingAccounts(remainingAccounts)
     .signers([beneficiary])
     .rpc();
 }

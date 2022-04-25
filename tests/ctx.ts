@@ -71,6 +71,14 @@ export class Context {
     ]);
   }
 
+  async stakesHistory(staking: PublicKey, epoch: number): Promise<PublicKey> {
+    return await findPDA(this, [
+      Buffer.from("stakes_history"),
+      staking.toBuffer(),
+      new BN(epoch).toArrayLike(Buffer, "le", 1),
+    ]);
+  }
+
   async member(user: PublicKey, stakingId: number | BN): Promise<PublicKey> {
     return await findPDA(this, [
       Buffer.from("member"),

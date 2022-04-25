@@ -41,6 +41,14 @@ pub struct CreateStaking<'info> {
         space = 8 + ConfigHistory::LEN,
    )]
     pub config_history: Box<Account<'info, ConfigHistory>>,
+    #[account(
+        init,
+        payer = authority,
+        seeds = [b"stakes_history", staking.key().as_ref(), &[0]],
+        bump,
+        space = 8 + StakesHistory::LEN,
+    )]
+    pub stakes_history: Box<Account<'info, StakesHistory>>,
     #[account(mut)]
     pub authority: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -54,7 +62,17 @@ pub struct ChangeConfig<'info> {
     pub staking: Account<'info, Staking>,
     #[account(mut, seeds = [b"config_history", staking.key().as_ref()], bump = config_history.bump)]
     pub config_history: Box<Account<'info, ConfigHistory>>,
+    #[account(
+        init,
+        payer = authority,
+        seeds = [b"stakes_history", staking.key().as_ref(), &[config_history.len]],
+        bump,
+        space = 8 + StakesHistory::LEN,
+    )]
+    pub stakes_history: Box<Account<'info, StakesHistory>>,
+    #[account(mut)]
     pub authority: Signer<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -156,6 +174,7 @@ pub struct ClaimReward<'info> {
     #[account(seeds = [b"config_history", staking.key().as_ref()], bump = config_history.bump)]
     pub config_history: Box<Account<'info, ConfigHistory>>,
     #[account(
+        mut,
         seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()],
         bump = member.bump,
     )]

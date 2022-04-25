@@ -1,5 +1,6 @@
 use crate::account::*;
 use crate::error::*;
+use crate::ID;
 use anchor_lang::prelude::*;
 use anchor_spl::token::TokenAccount;
 
@@ -41,14 +42,16 @@ impl RewardType {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn get_reward_amount(
         &self,
         staked_amount: u64,
-        stakes_sum: u64,
+        current_stakes_sum: u64,
         last_reward_ts: &mut u32,
         current_ts: u32,
         config_start_ts: u32,
         config_end_ts: u32,
+        stakes_history: &mut Account<StakesHistory>,
     ) -> Result<u64> {
         if *last_reward_ts == 0 {
             *last_reward_ts = current_ts;
@@ -79,15 +82,36 @@ impl RewardType {
                 reward_period,
                 ..
             } => {
-                let rewards_count = (end_ts - start_ts) / reward_period;
+                // align
+                *last_reward_ts -= (*last_reward_ts - config_start_ts) % reward_period;
+
+                let claimed_rewards_count = (*last_reward_ts - config_start_ts) / reward_period;
+                let all_rewards_count = (end_ts - config_start_ts) / reward_period;
+                let rewards_count = all_rewards_count - claimed_rewards_count;
+
+                let mut reward_amount = 0u64;
+
+                for i in claimed_rewards_count..all_rewards_count {
+                    if (stakes_history.len as u32) <= i {
+                        // no one has checked this reward yet so its stakes_sum becomes current
+                        stakes_history.stakes_sums[i as usize] = current_stakes_sum;
+                        stakes_history.len += 1;
+                    }
+
+                    reward_amount = reward_amount
+                        .checked_add(
+                            staked_amount
+                                .checked_mul(total_amount)
+                                .ok_or(StakingError::Overflow)?
+                                .checked_div(stakes_history.stakes_sums[i as usize])
+                                .unwrap_or(0),
+                        )
+                        .ok_or(StakingError::Overflow)?;
+                }
+
                 *last_reward_ts += rewards_count * reward_period;
 
-                staked_amount
-                    .checked_mul(rewards_count as u64)
-                    .ok_or(StakingError::Overflow)?
-                    .checked_mul(total_amount)
-                    .ok_or(StakingError::Overflow)?
-                    / stakes_sum
+                reward_amount
             }
             Self::Fixed {
                 required_amount,
@@ -101,14 +125,13 @@ impl RewardType {
                 let rewards_count = (end_ts - start_ts) / required_period;
                 *last_reward_ts += rewards_count * required_period;
 
-                let edge = if current_ts >= config_end_ts {
-                    let part = config_end_ts - *last_reward_ts;
+                let partial_reward = if current_ts >= config_end_ts {
+                    let partial_period = config_end_ts - *last_reward_ts;
                     *last_reward_ts = config_end_ts;
                     reward_amount
-                        .checked_mul(part as u64)
+                        .checked_mul(partial_period as u64)
                         .ok_or(StakingError::Overflow)?
-                        .checked_div(required_period as u64)
-                        .ok_or(StakingError::Overflow)?
+                        / required_period as u64
                 } else {
                     0
                 };
@@ -116,7 +139,7 @@ impl RewardType {
                 reward_amount
                     .checked_mul(rewards_count as u64)
                     .ok_or(StakingError::Overflow)?
-                    .checked_add(edge)
+                    .checked_add(partial_reward)
                     .ok_or(StakingError::Overflow)?
             }
         };
@@ -124,7 +147,6 @@ impl RewardType {
         Ok(reward_amount)
     }
 }
-
 impl Default for RewardType {
     fn default() -> Self {
         Self::Fixed {
@@ -136,27 +158,54 @@ impl Default for RewardType {
 }
 
 pub fn calculate_rewards(
+    current_ts: u32,
     staking: &Account<Staking>,
     config_history: &Account<ConfigHistory>,
     member: &mut Account<Member>,
     stake: &Account<TokenAccount>,
-    current_ts: u32,
+    remaining_accounts: &[AccountInfo],
 ) -> Result<u64> {
     let mut res = 0u64;
 
     for i in 0..config_history.len {
-        let reward_amount = (config_history.reward_types[i as usize]).get_reward_amount(
-            stake.amount,
-            staking.stakes_sum,
-            &mut member.last_reward_ts,
-            current_ts,
-            config_history.start_timestamps[i as usize],
-            if i + 1 == config_history.len {
-                u32::MAX
-            } else {
-                config_history.start_timestamps[(i + 1) as usize]
-            },
+        let mut stakes_history = Account::<StakesHistory>::try_from(
+            remaining_accounts
+                .get(i as usize)
+                .ok_or(StakingError::StakesHistory)?,
         )?;
+        let pda = Pubkey::create_program_address(
+            &[
+                b"stakes_history",
+                staking.key().as_ref(),
+                &[i],
+                &[stakes_history.bump],
+            ],
+            &ID,
+        )
+        .map_err(|_| StakingError::StakesHistory)?;
+        if stakes_history.key() != pda {
+            return err!(StakingError::StakesHistory);
+        }
+
+        let reward_amount = {
+            (config_history.reward_types[i as usize]).get_reward_amount(
+                stake.amount,
+                staking.stakes_sum,
+                &mut member.last_reward_ts,
+                current_ts,
+                config_history.start_timestamps[i as usize],
+                if i + 1 == config_history.len {
+                    u32::MAX
+                } else {
+                    config_history.start_timestamps[(i + 1) as usize]
+                },
+                &mut stakes_history,
+            )?
+        };
+
+        stakes_history
+            .try_serialize(&mut &mut remaining_accounts[i as usize].try_borrow_mut_data()?[..])?;
+
         res = res
             .checked_add(reward_amount)
             .ok_or(StakingError::Overflow)?;
