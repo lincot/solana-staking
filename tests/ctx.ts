@@ -19,7 +19,8 @@ export class Context {
 
   stakingAuthority: Keypair;
 
-  beneficiary: Keypair;
+  user1: Keypair;
+  user2: Keypair;
 
   constructor() {
     this.connection = new Connection("http://localhost:8899", "recent");
@@ -29,7 +30,8 @@ export class Context {
     this.mintAuthority = new Keypair();
     this.factoryAuthority = new Keypair();
     this.stakingAuthority = new Keypair();
-    this.beneficiary = new Keypair();
+    this.user1 = new Keypair();
+    this.user2 = new Keypair();
   }
 
   async setup() {
@@ -37,7 +39,8 @@ export class Context {
       this.mintAuthority.publicKey,
       this.factoryAuthority.publicKey,
       this.stakingAuthority.publicKey,
-      this.beneficiary.publicKey,
+      this.user1.publicKey,
+      this.user2.publicKey,
     ]);
 
     this.mint = await createMint(this, this.mintAuthority, 2);
