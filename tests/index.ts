@@ -51,7 +51,7 @@ describe("interest rate", () => {
     await registerMember(ctx, 0, ctx.user1);
     await mintTo(
       ctx,
-      await ctx.findATA(ctx.user1.publicKey),
+      await ctx.stakeATA(ctx.user1.publicKey),
       ctx.mintAuthority,
       100
     );
@@ -65,7 +65,7 @@ describe("interest rate", () => {
     ).to.eql(100);
   });
 
-  it("fails to claim reward before staking", async () => {
+  it("fails to claim before staking", async () => {
     await expect(claimReward(ctx, 0, ctx.user1)).to.be.rejected;
   });
 
@@ -81,16 +81,19 @@ describe("interest rate", () => {
   });
 
   it("waits", async () => {
-    await sleep(3000);
+    await sleep(4000);
   });
 
   it("claims", async () => {
     await claimReward(ctx, 0, ctx.user1);
 
     expect(
-      await (await ctx.findATA(ctx.user1.publicKey)).amount(ctx)
+      await (await ctx.rewardATA(ctx.user1.publicKey)).amount(ctx)
     ).to.be.oneOf([39, 49, 59]);
     expect(await ctx.factoryVault.amount(ctx)).to.eql(1);
+
+    await burnAll(ctx, await ctx.rewardATA(ctx.user1.publicKey), ctx.user1);
+    await burnAll(ctx, ctx.factoryVault, ctx.factoryAuthority);
   });
 
   it("starts unstake", async () => {
@@ -123,11 +126,9 @@ describe("interest rate", () => {
   it("withdraws", async () => {
     await withdraw(ctx, 0, ctx.user1);
 
-    expect(
-      await (await ctx.findATA(ctx.user1.publicKey)).amount(ctx)
-    ).to.be.oneOf([139, 149, 159]);
-
-    await burnAll(ctx, await ctx.findATA(ctx.user1.publicKey), ctx.user1);
+    expect(await (await ctx.stakeATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
+      100
+    );
   });
 });
 
@@ -136,26 +137,14 @@ describe("proportional", () => {
     await createStaking(ctx, 2, {
       proportional: { totalAmount: new BN(100), rewardPeriod: 3 },
     });
-    await burnAll(
-      ctx,
-      await ctx.findATA(ctx.factoryAuthority.publicKey),
-      ctx.factoryAuthority
-    );
   });
 
   it("registers", async () => {
     await registerMember(ctx, 1, ctx.user1);
-    await mintTo(
-      ctx,
-      await ctx.findATA(ctx.user1.publicKey),
-      ctx.mintAuthority,
-      100
-    );
-
     await registerMember(ctx, 1, ctx.user2);
     await mintTo(
       ctx,
-      await ctx.findATA(ctx.user2.publicKey),
+      await ctx.stakeATA(ctx.user2.publicKey),
       ctx.mintAuthority,
       100
     );
@@ -170,7 +159,7 @@ describe("proportional", () => {
     ).to.eql(100);
   });
 
-  it("fails to claim reward before staking", async () => {
+  it("fails to claim before staking", async () => {
     await expect(claimReward(ctx, 1, ctx.user1)).to.be.rejected;
   });
 
@@ -194,13 +183,17 @@ describe("proportional", () => {
     await claimReward(ctx, 1, ctx.user1);
     await claimReward(ctx, 1, ctx.user2);
 
-    expect(await (await ctx.findATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
+    expect(await (await ctx.rewardATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
       49
     );
-    expect(await (await ctx.findATA(ctx.user2.publicKey)).amount(ctx)).to.eql(
+    expect(await (await ctx.rewardATA(ctx.user2.publicKey)).amount(ctx)).to.eql(
       49
     );
     expect(await ctx.factoryVault.amount(ctx)).to.eql(2);
+
+    await burnAll(ctx, await ctx.rewardATA(ctx.user1.publicKey), ctx.user1);
+    await burnAll(ctx, await ctx.rewardATA(ctx.user2.publicKey), ctx.user2);
+    await burnAll(ctx, ctx.factoryVault, ctx.factoryAuthority);
   });
 });
 
@@ -213,19 +206,13 @@ describe("fixed", () => {
         rewardAmount: new BN(100),
       },
     });
-    await burnAll(
-      ctx,
-      await ctx.findATA(ctx.factoryAuthority.publicKey),
-      ctx.factoryAuthority
-    );
   });
 
   it("registers", async () => {
     await registerMember(ctx, 2, ctx.user1);
-    await burnAll(ctx, await ctx.findATA(ctx.user1.publicKey), ctx.user1);
     await mintTo(
       ctx,
-      await ctx.findATA(ctx.user1.publicKey),
+      await ctx.stakeATA(ctx.user1.publicKey),
       ctx.mintAuthority,
       100
     );
@@ -239,7 +226,7 @@ describe("fixed", () => {
     ).to.eql(100);
   });
 
-  it("fails to claim reward before staking", async () => {
+  it("fails to claim before staking", async () => {
     await expect(claimReward(ctx, 2, ctx.user1)).to.be.rejected;
   });
 
@@ -255,13 +242,13 @@ describe("fixed", () => {
   });
 
   it("waits", async () => {
-    await sleep(3000);
+    await sleep(4000);
   });
 
   it("claims", async () => {
     await claimReward(ctx, 2, ctx.user1);
 
-    expect(await (await ctx.findATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
+    expect(await (await ctx.rewardATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
       97
     );
     expect(await ctx.factoryVault.amount(ctx)).to.eql(3);

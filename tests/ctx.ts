@@ -11,7 +11,8 @@ export class Context {
   payer: Keypair;
 
   mintAuthority: Keypair;
-  mint: PublicKey;
+  stakeMint: PublicKey;
+  rewardMint: PublicKey;
 
   factoryAuthority: Keypair;
   factory: PublicKey;
@@ -43,14 +44,12 @@ export class Context {
       this.user2.publicKey,
     ]);
 
-    this.mint = await createMint(this, this.mintAuthority, 2);
+    this.stakeMint = await createMint(this, this.mintAuthority, 2);
+    this.rewardMint = await createMint(this, this.mintAuthority, 6);
 
     this.factory = await findPDA(this, [Buffer.from("factory")]);
 
-    this.factoryVault = new TokenAccount(
-      await findATA(this, this.factoryAuthority.publicKey, this.mint),
-      this.mint
-    );
+    this.factoryVault = await this.rewardATA(this.factoryAuthority.publicKey);
   }
 
   async staking(stakingId: number | BN): Promise<PublicKey> {
@@ -63,7 +62,7 @@ export class Context {
   async rewardVault(staking: PublicKey): Promise<TokenAccount> {
     return new TokenAccount(
       await findPDA(this, [Buffer.from("reward_vault"), staking.toBuffer()]),
-      this.mint
+      this.rewardMint
     );
   }
 
@@ -110,7 +109,7 @@ export class Context {
       Buffer.from("available"),
       member.toBuffer(),
     ]);
-    return new TokenAccount(address, this.mint);
+    return new TokenAccount(address, this.stakeMint);
   }
 
   async stake(user: PublicKey, stakingId: number | BN): Promise<TokenAccount> {
@@ -119,7 +118,7 @@ export class Context {
       Buffer.from("stake"),
       member.toBuffer(),
     ]);
-    return new TokenAccount(address, this.mint);
+    return new TokenAccount(address, this.stakeMint);
   }
 
   async pending(
@@ -131,10 +130,14 @@ export class Context {
       Buffer.from("pending"),
       member.toBuffer(),
     ]);
-    return new TokenAccount(address, this.mint);
+    return new TokenAccount(address, this.stakeMint);
   }
 
-  async findATA(owner: PublicKey): Promise<TokenAccount> {
-    return await findATA(this, owner, this.mint);
+  async stakeATA(owner: PublicKey): Promise<TokenAccount> {
+    return await findATA(this, owner, this.stakeMint);
+  }
+
+  async rewardATA(owner: PublicKey): Promise<TokenAccount> {
+    return await findATA(this, owner, this.rewardMint);
   }
 }

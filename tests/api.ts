@@ -2,7 +2,7 @@ import { BN } from "@project-serum/anchor";
 import { Keypair, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Context } from "./ctx";
-import { findATA, mintTo } from "./token";
+import { mintTo } from "./token";
 
 export async function initialize(ctx: Context): Promise<void> {
   await ctx.program.methods
@@ -29,14 +29,14 @@ export async function createStaking(
   const stakesHistory = await ctx.stakesHistory(staking, 0);
 
   await ctx.program.methods
-    .createStaking(ctx.mint, withdrawalTimelock, rewardType)
+    .createStaking(ctx.stakeMint, withdrawalTimelock, rewardType)
     .accounts({
       factory: ctx.factory,
       staking,
       rewardVault,
       configHistory,
       stakesHistory,
-      rewardMint: ctx.mint,
+      rewardMint: ctx.rewardMint,
       authority: ctx.stakingAuthority.publicKey,
       rent: SYSVAR_RENT_PUBKEY,
       systemProgram: SystemProgram.programId,
@@ -82,7 +82,7 @@ export async function registerMember(
     .registerMember()
     .accounts({
       staking,
-      stakeMint: ctx.mint,
+      stakeMint: ctx.stakeMint,
       member: await ctx.member(beneficiary.publicKey, stakingId),
       pendingWithdrawal: await ctx.pendingWithdrawal(
         beneficiary.publicKey,
@@ -115,7 +115,7 @@ export async function deposit(
       member: await ctx.member(beneficiary.publicKey, stakingId),
       beneficiary: beneficiary.publicKey,
       available: await ctx.available(beneficiary.publicKey, stakingId),
-      depositor: await findATA(ctx, beneficiary.publicKey, ctx.mint),
+      depositor: await ctx.stakeATA(beneficiary.publicKey),
       tokenProgram: TOKEN_PROGRAM_ID,
     })
     .signers([beneficiary])
@@ -190,7 +190,7 @@ export async function claimReward(
       beneficiary: beneficiary.publicKey,
       stake: await ctx.stake(beneficiary.publicKey, stakingId),
       rewardVault,
-      destination: await findATA(ctx, beneficiary.publicKey, ctx.mint),
+      destination: await ctx.rewardATA(beneficiary.publicKey),
       factoryVault: ctx.factoryVault,
       tokenProgram: TOKEN_PROGRAM_ID,
     })
@@ -280,7 +280,7 @@ export async function withdraw(
       member: await ctx.member(beneficiary.publicKey, stakingId),
       beneficiary: beneficiary.publicKey,
       available: await ctx.available(beneficiary.publicKey, stakingId),
-      destination: await findATA(ctx, beneficiary.publicKey, ctx.mint),
+      destination: await ctx.stakeATA(beneficiary.publicKey),
       tokenProgram: TOKEN_PROGRAM_ID,
     })
     .signers([beneficiary])
