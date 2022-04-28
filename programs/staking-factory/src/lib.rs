@@ -222,13 +222,12 @@ impl<'info> Deposit<'info> {
 
 impl<'info> Stake<'info> {
     fn transfer(&self, amount: u64) -> Result<()> {
-        let seeds = &[
+        let signer: &[&[&[u8]]] = &[&[
             b"member".as_ref(),
             &self.staking.id.to_le_bytes(),
             self.beneficiary.to_account_info().key.as_ref(),
             &[self.member.bump],
-        ];
-        let signer = &[&seeds[..]];
+        ]];
         let cpi_ctx = CpiContext::new_with_signer(
             self.token_program.to_account_info(),
             token::Transfer {
@@ -244,12 +243,11 @@ impl<'info> Stake<'info> {
 
 impl<'info> ClaimReward<'info> {
     fn transfer_to_user(&self, amount: u64) -> Result<()> {
-        let seeds = &[
+        let signer: &[&[&[u8]]] = &[&[
             b"staking".as_ref(),
             &self.staking.id.to_le_bytes(),
             &[self.staking.bump],
-        ];
-        let signer = &[&seeds[..]];
+        ]];
         let cpi_ctx = CpiContext::new_with_signer(
             self.token_program.to_account_info(),
             token::Transfer {
@@ -263,12 +261,11 @@ impl<'info> ClaimReward<'info> {
     }
 
     fn transfer_to_factory_owner(&self, amount: u64) -> Result<()> {
-        let seeds = &[
+        let signer: &[&[&[u8]]] = &[&[
             b"staking".as_ref(),
             &self.staking.id.to_le_bytes(),
             &[self.staking.bump],
-        ];
-        let signer = &[&seeds[..]];
+        ]];
         let cpi_ctx = CpiContext::new_with_signer(
             self.token_program.to_account_info(),
             token::Transfer {
@@ -284,13 +281,12 @@ impl<'info> ClaimReward<'info> {
 
 impl<'info> StartUnstake<'info> {
     fn transfer(&self, amount: u64) -> Result<()> {
-        let seeds = &[
+        let signer: &[&[&[u8]]] = &[&[
             b"member".as_ref(),
             &self.staking.id.to_le_bytes(),
             self.beneficiary.to_account_info().key.as_ref(),
             &[self.member.bump],
-        ];
-        let signer = &[&seeds[..]];
+        ]];
         let cpi_ctx = CpiContext::new_with_signer(
             self.token_program.to_account_info(),
             token::Transfer {
@@ -306,13 +302,12 @@ impl<'info> StartUnstake<'info> {
 
 impl<'info> EndUnstake<'info> {
     fn transfer(&self) -> Result<()> {
-        let seeds = &[
+        let signer: &[&[&[u8]]] = &[&[
             b"member".as_ref(),
             &self.staking.id.to_le_bytes(),
             self.beneficiary.to_account_info().key.as_ref(),
             &[self.member.bump],
-        ];
-        let signer = &[&seeds[..]];
+        ]];
         let cpi_ctx = CpiContext::new_with_signer(
             self.token_program.to_account_info(),
             Transfer {
@@ -328,13 +323,12 @@ impl<'info> EndUnstake<'info> {
 
 impl<'info> Withdraw<'info> {
     fn transfer(&self, amount: u64) -> Result<()> {
-        let seeds = &[
+        let signer: &[&[&[u8]]] = &[&[
             b"member".as_ref(),
             &self.staking.id.to_le_bytes(),
             self.beneficiary.to_account_info().key.as_ref(),
             &[self.member.bump],
-        ];
-        let signer = &[&seeds[..]];
+        ]];
         let cpi_accounts = Transfer {
             from: self.available.to_account_info(),
             to: self.destination.to_account_info(),
