@@ -81,7 +81,7 @@ describe("interest rate", () => {
   });
 
   it("waits", async () => {
-    await sleep(4000);
+    await sleep(3000);
   });
 
   it("claims", async () => {
@@ -242,7 +242,7 @@ describe("fixed", () => {
   });
 
   it("waits", async () => {
-    await sleep(4000);
+    await sleep(3000);
   });
 
   it("claims", async () => {

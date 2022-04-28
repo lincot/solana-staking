@@ -5,7 +5,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::TokenAccount;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone, Debug)]
-pub enum RewardType {
+pub enum RewardParams {
     InterestRate {
         num: u64,
         denom: u64,
@@ -20,30 +20,33 @@ pub enum RewardType {
         reward_amount: u64,
     },
 }
-impl RewardType {
+impl Default for RewardParams {
+    fn default() -> Self {
+        Self::Fixed {
+            required_amount: 0,
+            required_period: 0,
+            reward_amount: 0,
+        }
+    }
+}
+impl RewardParams {
     pub const LEN: usize = 1 + 8 + 4 + 8;
 
     pub fn validate_fields(&self) -> Result<()> {
-        if matches!(
-            *self,
-            Self::InterestRate { denom: 0, .. }
-                | Self::Proportional {
-                    reward_period: 0,
-                    ..
-                }
-                | Self::Fixed {
-                    required_period: 0,
-                    ..
-                }
-        ) {
-            return err!(StakingError::Overflow);
+        match self {
+            Self::InterestRate { denom: 0, .. } => err!(StakingError::Zero),
+            Self::Proportional {
+                reward_period: 0, ..
+            } => err!(StakingError::Zero),
+            Self::Fixed {
+                required_period: 0, ..
+            } => err!(StakingError::Zero),
+            _ => Ok(()),
         }
-
-        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn get_reward_amount(
+    fn get_reward_amount(
         &self,
         staked_amount: u64,
         current_stakes_sum: u64,
@@ -145,15 +148,6 @@ impl RewardType {
         };
 
         Ok(reward_amount)
-    }
-}
-impl Default for RewardType {
-    fn default() -> Self {
-        Self::Fixed {
-            required_amount: 1,
-            required_period: 1,
-            reward_amount: 1,
-        }
     }
 }
 

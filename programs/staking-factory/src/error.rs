@@ -11,4 +11,6 @@ pub enum StakingError {
     NothingToClaim,
     #[msg("The unstake timelock has not yet expired")]
     UnstakeTimelock,
+    #[msg("0 is not allowed as a value")]
+    Zero,
 }

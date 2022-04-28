@@ -30,7 +30,7 @@ pub mod staking_factory {
         ctx: Context<CreateStaking>,
         stake_mint: Pubkey,
         withdrawal_timelock: u32,
-        reward_type: RewardType,
+        reward_type: RewardParams,
     ) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp as u32;
 
@@ -59,7 +59,7 @@ pub mod staking_factory {
 
     pub fn change_config(
         ctx: Context<ChangeConfig>,
-        new_reward_type: Option<RewardType>,
+        new_reward_type: Option<RewardParams>,
     ) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp as u32;
 

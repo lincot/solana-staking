@@ -20,22 +20,22 @@ pub struct Staking {
     pub withdrawal_timelock: u32,
     pub stake_mint: Pubkey,
     pub reward_mint: Pubkey,
-    pub reward_type: RewardType,
+    pub reward_type: RewardParams,
     pub stakes_sum: u64,
 }
 impl Staking {
-    pub const LEN: usize = 1 + 1 + 32 + 2 + 4 + 32 + 32 + RewardType::LEN + 8;
+    pub const LEN: usize = 1 + 1 + 32 + 2 + 4 + 32 + 32 + RewardParams::LEN + 8;
 }
 
 #[account]
 pub struct ConfigHistory {
     pub bump: u8,
     pub len: u8,
-    pub reward_types: [RewardType; 32],
+    pub reward_types: [RewardParams; 32],
     pub start_timestamps: [u32; 32],
 }
 impl ConfigHistory {
-    pub const LEN: usize = 1 + 1 + (RewardType::LEN + 4) * 32;
+    pub const LEN: usize = 1 + 1 + (RewardParams::LEN + 4) * 32;
 }
 
 #[account]
