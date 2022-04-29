@@ -44,7 +44,7 @@ pub struct CreateStaking<'info> {
     #[account(
         init,
         payer = authority,
-        seeds = [b"stakes_history", staking.key().as_ref(), &[0]],
+        seeds = [b"stakes_history", staking.key().as_ref()],
         bump,
         space = 8 + StakesHistory::LEN,
     )]
@@ -62,15 +62,8 @@ pub struct ChangeConfig<'info> {
     pub staking: Account<'info, Staking>,
     #[account(mut, seeds = [b"config_history", staking.key().as_ref()], bump = config_history.bump)]
     pub config_history: Box<Account<'info, ConfigHistory>>,
-    #[account(
-        init,
-        payer = authority,
-        seeds = [b"stakes_history", staking.key().as_ref(), &[config_history.len]],
-        bump,
-        space = 8 + StakesHistory::LEN,
-    )]
+    #[account(mut, seeds = [b"stakes_history", staking.key().as_ref()], bump = stakes_history.bump)]
     pub stakes_history: Box<Account<'info, StakesHistory>>,
-    #[account(mut)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
 }

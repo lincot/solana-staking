@@ -103,6 +103,8 @@ pub struct Stake<'info> {
     pub available: Account<'info, TokenAccount>,
     #[account(mut, seeds = [b"stake", member.key().as_ref()], bump = member.bump_stake)]
     pub stake: Account<'info, TokenAccount>,
+    #[account(mut, seeds = [b"stakes_history", staking.key().as_ref()], bump = stakes_history.bump)]
+    pub stakes_history: Box<Account<'info, StakesHistory>>,
     pub token_program: Program<'info, Token>,
 }
 impl<'info> Stake<'info> {
@@ -142,6 +144,8 @@ pub struct ClaimReward<'info> {
     pub beneficiary: Signer<'info>,
     #[account(seeds = [b"stake", member.key().as_ref()], bump = member.bump_stake)]
     pub stake: Account<'info, TokenAccount>,
+    #[account(mut, seeds = [b"stakes_history", staking.key().as_ref()], bump = stakes_history.bump)]
+    pub stakes_history: Box<Account<'info, StakesHistory>>,
     #[account(mut, seeds = [b"reward_vault", staking.key().as_ref()], bump = staking.bump_vault)]
     pub reward_vault: Account<'info, TokenAccount>,
     #[account(mut)]
@@ -209,6 +213,8 @@ pub struct StartUnstake<'info> {
     pub beneficiary: Signer<'info>,
     #[account(mut, seeds = [b"stake", member.key().as_ref()], bump = member.bump_stake)]
     pub stake: Account<'info, TokenAccount>,
+    #[account(mut, seeds = [b"stakes_history", staking.key().as_ref()], bump = stakes_history.bump)]
+    pub stakes_history: Box<Account<'info, StakesHistory>>,
     #[account(mut, seeds = [b"pending", member.key().as_ref()], bump = member.bump_pending)]
     pub pending: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,

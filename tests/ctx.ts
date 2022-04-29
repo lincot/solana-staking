@@ -73,11 +73,10 @@ export class Context {
     ]);
   }
 
-  async stakesHistory(staking: PublicKey, epoch: number): Promise<PublicKey> {
+  async stakesHistory(staking: PublicKey): Promise<PublicKey> {
     return await findPDA(this, [
       Buffer.from("stakes_history"),
       staking.toBuffer(),
-      new BN(epoch).toArrayLike(Buffer, "le", 1),
     ]);
   }
 

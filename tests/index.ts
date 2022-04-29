@@ -242,7 +242,7 @@ describe("fixed", () => {
   });
 
   it("waits", async () => {
-    await sleep(3000);
+    await sleep(3500);
   });
 
   it("claims", async () => {

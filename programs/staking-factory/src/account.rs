@@ -20,7 +20,7 @@ pub struct Staking {
     pub withdrawal_timelock: u32,
     pub stake_mint: Pubkey,
     pub reward_mint: Pubkey,
-    pub reward_type: RewardParams,
+    pub reward_params: RewardParams,
     pub stakes_sum: u64,
 }
 impl Staking {
@@ -31,7 +31,7 @@ impl Staking {
 pub struct ConfigHistory {
     pub bump: u8,
     pub len: u8,
-    pub reward_types: [RewardParams; 32],
+    pub reward_params: [RewardParams; 32],
     pub start_timestamps: [u32; 32],
 }
 impl ConfigHistory {
@@ -42,11 +42,12 @@ impl ConfigHistory {
 pub struct StakesHistory {
     pub bump: u8,
     pub len: u8,
-    // for current config
-    pub stakes_sums: [u64; 32],
+    pub stakes_sums: [u64; 128],
+    /// first stakes_sum for each config
+    pub offsets: [u8; 32],
 }
 impl StakesHistory {
-    pub const LEN: usize = 1 + 1 + 8 * 32;
+    pub const LEN: usize = 1 + 1 + 8 * 128 + 1 * 32;
 }
 
 #[account]

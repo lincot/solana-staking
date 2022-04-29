@@ -31,11 +31,11 @@ pub mod staking_factory {
         ctx: Context<CreateStaking>,
         stake_mint: Pubkey,
         withdrawal_timelock: u32,
-        reward_type: RewardParams,
+        reward_params: RewardParams,
     ) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp as u32;
 
-        reward_type.validate_fields()?;
+        reward_params.validate_fields()?;
 
         ctx.accounts.staking.bump = *ctx.bumps.get("staking").unwrap();
         ctx.accounts.staking.bump_vault = *ctx.bumps.get("reward_vault").unwrap();
@@ -44,11 +44,11 @@ pub mod staking_factory {
         ctx.accounts.staking.stake_mint = stake_mint;
         ctx.accounts.staking.reward_mint = ctx.accounts.reward_mint.key();
         ctx.accounts.staking.withdrawal_timelock = withdrawal_timelock;
-        ctx.accounts.staking.reward_type = reward_type;
+        ctx.accounts.staking.reward_params = reward_params;
 
         ctx.accounts.config_history.bump = *ctx.bumps.get("config_history").unwrap();
         ctx.accounts.config_history.len = 1;
-        ctx.accounts.config_history.reward_types[0] = reward_type;
+        ctx.accounts.config_history.reward_params[0] = reward_params;
         ctx.accounts.config_history.start_timestamps[0] = ts;
 
         ctx.accounts.stakes_history.bump = *ctx.bumps.get("stakes_history").unwrap();
@@ -60,27 +60,35 @@ pub mod staking_factory {
 
     pub fn change_config(
         ctx: Context<ChangeConfig>,
-        new_reward_type: Option<RewardParams>,
+        new_reward_params: Option<RewardParams>,
     ) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp as u32;
 
-        if let Some(new_reward_type) = new_reward_type {
-            if std::mem::discriminant(&ctx.accounts.staking.reward_type)
-                != std::mem::discriminant(&new_reward_type)
+        if let Some(new_reward_params) = new_reward_params {
+            if std::mem::discriminant(&ctx.accounts.staking.reward_params)
+                != std::mem::discriminant(&new_reward_params)
             {
                 return err!(StakingError::CannotChangeStakingType);
             }
 
-            new_reward_type.validate_fields()?;
+            new_reward_params.validate_fields()?;
 
-            ctx.accounts.staking.reward_type = new_reward_type;
+            if let RewardParams::Proportional { reward_period, .. } =
+                ctx.accounts.staking.reward_params
+            {
+                let len = ctx.accounts.config_history.len as usize;
+                let rewards_dropped =
+                    (ts - ctx.accounts.config_history.start_timestamps[len - 1]) / reward_period;
+                ctx.accounts.stakes_history.offsets[len] =
+                    ctx.accounts.stakes_history.offsets[len - 1] + rewards_dropped as u8;
+            }
+
+            ctx.accounts.staking.reward_params = new_reward_params;
 
             let len = ctx.accounts.config_history.len as usize;
-            ctx.accounts.config_history.reward_types[len] = new_reward_type;
+            ctx.accounts.config_history.reward_params[len] = new_reward_params;
             ctx.accounts.config_history.start_timestamps[len] = ts;
             ctx.accounts.config_history.len += 1;
-
-            ctx.accounts.stakes_history.bump = *ctx.bumps.get("stakes_history").unwrap();
         }
 
         Ok(())
@@ -112,7 +120,7 @@ pub mod staking_factory {
             &ctx.accounts.config_history,
             &mut ctx.accounts.member,
             &ctx.accounts.stake,
-            ctx.remaining_accounts,
+            &mut ctx.accounts.stakes_history,
         )?;
         ctx.accounts.member.unclaimed_rewards = (ctx.accounts.member.unclaimed_rewards)
             .checked_add(rewards)
@@ -136,7 +144,7 @@ pub mod staking_factory {
             &ctx.accounts.config_history,
             &mut ctx.accounts.member,
             &ctx.accounts.stake,
-            ctx.remaining_accounts,
+            &mut ctx.accounts.stakes_history,
         )?;
 
         let total_amount = rewards
@@ -169,7 +177,7 @@ pub mod staking_factory {
             &ctx.accounts.config_history,
             &mut ctx.accounts.member,
             &ctx.accounts.stake,
-            ctx.remaining_accounts,
+            &mut ctx.accounts.stakes_history,
         )?;
         ctx.accounts.member.unclaimed_rewards = (ctx.accounts.member.unclaimed_rewards)
             .checked_add(rewards)

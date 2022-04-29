@@ -1,6 +1,5 @@
 use crate::account::*;
 use crate::error::*;
-use crate::ID;
 use anchor_lang::prelude::*;
 use anchor_spl::token::TokenAccount;
 
@@ -55,6 +54,7 @@ impl RewardParams {
         config_start_ts: u32,
         config_end_ts: u32,
         stakes_history: &mut Account<StakesHistory>,
+        offset: u8,
     ) -> Result<u64> {
         if *last_reward_ts == 0 {
             *last_reward_ts = current_ts;
@@ -94,7 +94,7 @@ impl RewardParams {
 
                 let mut reward_amount = 0u64;
 
-                for i in claimed_rewards_count..all_rewards_count {
+                for i in offset as u32 + claimed_rewards_count..offset as u32 + all_rewards_count {
                     if (stakes_history.len as u32) <= i {
                         // no one has checked this reward yet so its stakes_sum becomes current
                         stakes_history.stakes_sums[i as usize] = current_stakes_sum;
@@ -151,38 +151,20 @@ impl RewardParams {
     }
 }
 
-pub fn calculate_rewards(
+pub fn calculate_rewards<'info>(
     current_ts: u32,
-    staking: &Account<Staking>,
-    config_history: &Account<ConfigHistory>,
-    member: &mut Account<Member>,
-    stake: &Account<TokenAccount>,
-    remaining_accounts: &[AccountInfo],
+    staking: &Account<'info, Staking>,
+    config_history: &Account<'info, ConfigHistory>,
+    member: &mut Account<'info, Member>,
+    stake: &Account<'info, TokenAccount>,
+    stakes_history: &mut Account<'info, StakesHistory>,
 ) -> Result<u64> {
     let mut res = 0u64;
 
     for i in 0..config_history.len {
-        let mut stakes_history = Account::<StakesHistory>::try_from(
-            remaining_accounts
-                .get(i as usize)
-                .ok_or(StakingError::StakesHistory)?,
-        )?;
-        let pda = Pubkey::create_program_address(
-            &[
-                b"stakes_history",
-                staking.key().as_ref(),
-                &[i],
-                &[stakes_history.bump],
-            ],
-            &ID,
-        )
-        .map_err(|_| StakingError::StakesHistory)?;
-        if stakes_history.key() != pda {
-            return err!(StakingError::StakesHistory);
-        }
-
+        let offset = stakes_history.offsets[i as usize];
         let reward_amount = {
-            (config_history.reward_types[i as usize]).get_reward_amount(
+            (config_history.reward_params[i as usize]).get_reward_amount(
                 stake.amount,
                 staking.stakes_sum,
                 &mut member.last_reward_ts,
@@ -193,13 +175,10 @@ pub fn calculate_rewards(
                 } else {
                     config_history.start_timestamps[(i + 1) as usize]
                 },
-                &mut stakes_history,
+                stakes_history,
+                offset,
             )?
         };
-
-        stakes_history
-            .try_serialize(&mut &mut remaining_accounts[i as usize].try_borrow_mut_data()?[..])?;
-
         res = res
             .checked_add(reward_amount)
             .ok_or(StakingError::Overflow)?;

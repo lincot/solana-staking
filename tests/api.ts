@@ -25,8 +25,6 @@ export async function createStaking(
     .stakingsCount;
   const staking = await ctx.staking(stakingId);
   const rewardVault = await ctx.rewardVault(staking);
-  const configHistory = await ctx.configHistory(staking);
-  const stakesHistory = await ctx.stakesHistory(staking, 0);
 
   await ctx.program.methods
     .createStaking(ctx.stakeMint, withdrawalTimelock, rewardType)
@@ -34,8 +32,8 @@ export async function createStaking(
       factory: ctx.factory,
       staking,
       rewardVault,
-      configHistory,
-      stakesHistory,
+      configHistory: await ctx.configHistory(staking),
+      stakesHistory: await ctx.stakesHistory(staking),
       rewardMint: ctx.rewardMint,
       authority: ctx.stakingAuthority.publicKey,
       rent: SYSVAR_RENT_PUBKEY,
@@ -53,17 +51,13 @@ export async function changeConfig(
   rewardType: any
 ): Promise<void> {
   const staking = await ctx.staking(stakingId);
-  const configHistory = await ctx.configHistory(staking);
-  const epoch = (await ctx.program.account.configHistory.fetch(configHistory))
-    .len;
-  const stakesHistory = await ctx.stakesHistory(staking, epoch);
 
   await ctx.program.methods
     .changeConfig(rewardType)
     .accounts({
       staking,
-      configHistory,
-      stakesHistory,
+      configHistory: await ctx.configHistory(staking),
+      stakesHistory: await ctx.stakesHistory(staking),
       authority: ctx.stakingAuthority.publicKey,
       systemProgram: SystemProgram.programId,
     })
@@ -129,32 +123,19 @@ export async function stake(
   amount: number | BN
 ): Promise<void> {
   const staking = await ctx.staking(stakingId);
-  const configHistory = await ctx.configHistory(staking);
-  const epoch = (await ctx.program.account.configHistory.fetch(configHistory))
-    .len;
-
-  const remainingAccounts = [];
-  for (let i = 0; i < epoch; i++) {
-    const stakesHistory = await ctx.stakesHistory(staking, i);
-    remainingAccounts.push({
-      pubkey: stakesHistory,
-      isWritable: true,
-      isSigner: false,
-    });
-  }
 
   await ctx.program.methods
     .stake(new BN(amount))
     .accounts({
       staking,
-      configHistory,
+      configHistory: await ctx.configHistory(staking),
       member: await ctx.member(beneficiary.publicKey, stakingId),
       beneficiary: beneficiary.publicKey,
       available: await ctx.available(beneficiary.publicKey, stakingId),
       stake: await ctx.stake(beneficiary.publicKey, stakingId),
+      stakesHistory: await ctx.stakesHistory(staking),
       tokenProgram: TOKEN_PROGRAM_ID,
     })
-    .remainingAccounts(remainingAccounts)
     .signers([beneficiary])
     .rpc();
 }
@@ -165,36 +146,22 @@ export async function claimReward(
   beneficiary: Keypair
 ): Promise<void> {
   const staking = await ctx.staking(stakingId);
-  const rewardVault = await ctx.rewardVault(staking);
-  const configHistory = await ctx.configHistory(staking);
-  const epoch = (await ctx.program.account.configHistory.fetch(configHistory))
-    .len;
-
-  const remainingAccounts = [];
-  for (let i = 0; i < epoch; i++) {
-    const stakesHistory = await ctx.stakesHistory(staking, i);
-    remainingAccounts.push({
-      pubkey: stakesHistory,
-      isWritable: true,
-      isSigner: false,
-    });
-  }
 
   await ctx.program.methods
     .claimReward()
     .accounts({
       factory: ctx.factory,
       staking,
-      configHistory,
+      configHistory: await ctx.configHistory(staking),
       member: await ctx.member(beneficiary.publicKey, stakingId),
       beneficiary: beneficiary.publicKey,
       stake: await ctx.stake(beneficiary.publicKey, stakingId),
-      rewardVault,
+      stakesHistory: await ctx.stakesHistory(staking),
+      rewardVault: await ctx.rewardVault(staking),
       destination: await ctx.rewardATA(beneficiary.publicKey),
       factoryVault: ctx.factoryVault,
       tokenProgram: TOKEN_PROGRAM_ID,
     })
-    .remainingAccounts(remainingAccounts)
     .signers([beneficiary])
     .rpc();
 }
@@ -206,25 +173,12 @@ export async function startUnstake(
   amount: number | BN
 ): Promise<void> {
   const staking = await ctx.staking(stakingId);
-  const configHistory = await ctx.configHistory(staking);
-  const epoch = (await ctx.program.account.configHistory.fetch(configHistory))
-    .len;
-
-  const remainingAccounts = [];
-  for (let i = 0; i < epoch; i++) {
-    const stakesHistory = await ctx.stakesHistory(staking, i);
-    remainingAccounts.push({
-      pubkey: stakesHistory,
-      isWritable: true,
-      isSigner: false,
-    });
-  }
 
   await ctx.program.methods
     .startUnstake(new BN(amount))
     .accounts({
       staking,
-      configHistory,
+      configHistory: await ctx.configHistory(staking),
       pendingWithdrawal: await ctx.pendingWithdrawal(
         beneficiary.publicKey,
         stakingId
@@ -232,11 +186,11 @@ export async function startUnstake(
       member: await ctx.member(beneficiary.publicKey, stakingId),
       beneficiary: beneficiary.publicKey,
       stake: await ctx.stake(beneficiary.publicKey, stakingId),
+      stakesHistory: await ctx.stakesHistory(staking),
       pending: await ctx.pending(beneficiary.publicKey, stakingId),
       tokenProgram: TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
     })
-    .remainingAccounts(remainingAccounts)
     .signers([beneficiary])
     .rpc();
 }
