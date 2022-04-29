@@ -1,79 +1,6 @@
 use crate::account::*;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount};
-
-#[derive(Accounts)]
-pub struct Initialize<'info> {
-    #[account(init, payer = authority, seeds = [b"factory"], bump, space = 8 + Factory::LEN)]
-    pub factory: Account<'info, Factory>,
-    #[account(mut)]
-    pub authority: Signer<'info>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct CreateStaking<'info> {
-    #[account(mut, seeds = [b"factory"], bump = factory.bump)]
-    pub factory: Account<'info, Factory>,
-    #[account(
-        init,
-        payer = authority,
-        seeds = [b"staking", factory.stakings_count.to_le_bytes().as_ref()],
-        bump,
-        space = 8 + Staking::LEN,
-    )]
-    pub staking: Account<'info, Staking>,
-    pub reward_mint: Account<'info, Mint>,
-    #[account(
-        init,
-        payer = authority,
-        seeds = [b"reward_vault", staking.key().as_ref()],
-        bump,
-        token::authority = staking,
-        token::mint = reward_mint,
-    )]
-    pub reward_vault: Box<Account<'info, TokenAccount>>,
-    #[account(
-        init,
-        payer = authority,
-        seeds = [b"config_history", staking.key().as_ref()],
-        bump,
-        space = 8 + ConfigHistory::LEN,
-   )]
-    pub config_history: Box<Account<'info, ConfigHistory>>,
-    #[account(
-        init,
-        payer = authority,
-        seeds = [b"stakes_history", staking.key().as_ref(), &[0]],
-        bump,
-        space = 8 + StakesHistory::LEN,
-    )]
-    pub stakes_history: Box<Account<'info, StakesHistory>>,
-    #[account(mut)]
-    pub authority: Signer<'info>,
-    pub rent: Sysvar<'info, Rent>,
-    pub token_program: Program<'info, Token>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct ChangeConfig<'info> {
-    #[account(mut, has_one = authority)]
-    pub staking: Account<'info, Staking>,
-    #[account(mut, seeds = [b"config_history", staking.key().as_ref()], bump = config_history.bump)]
-    pub config_history: Box<Account<'info, ConfigHistory>>,
-    #[account(
-        init,
-        payer = authority,
-        seeds = [b"stakes_history", staking.key().as_ref(), &[config_history.len]],
-        bump,
-        space = 8 + StakesHistory::LEN,
-    )]
-    pub stakes_history: Box<Account<'info, StakesHistory>>,
-    #[account(mut)]
-    pub authority: Signer<'info>,
-    pub system_program: Program<'info, System>,
-}
+use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
 #[derive(Accounts)]
 pub struct RegisterMember<'info> {
@@ -145,6 +72,19 @@ pub struct Deposit<'info> {
     pub depositor: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
+impl<'info> Deposit<'info> {
+    pub fn transfer(&self, amount: u64) -> Result<()> {
+        let cpi_ctx = CpiContext::new(
+            self.token_program.to_account_info(),
+            Transfer {
+                from: self.depositor.to_account_info(),
+                to: self.available.to_account_info(),
+                authority: self.beneficiary.to_account_info(),
+            },
+        );
+        token::transfer(cpi_ctx, amount)
+    }
+}
 
 #[derive(Accounts)]
 pub struct Stake<'info> {
@@ -164,6 +104,26 @@ pub struct Stake<'info> {
     #[account(mut, seeds = [b"stake", member.key().as_ref()], bump = member.bump_stake)]
     pub stake: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
+}
+impl<'info> Stake<'info> {
+    pub fn transfer(&self, amount: u64) -> Result<()> {
+        let signer: &[&[&[u8]]] = &[&[
+            b"member".as_ref(),
+            &self.staking.id.to_le_bytes(),
+            self.beneficiary.to_account_info().key.as_ref(),
+            &[self.member.bump],
+        ]];
+        let cpi_ctx = CpiContext::new_with_signer(
+            self.token_program.to_account_info(),
+            token::Transfer {
+                from: self.available.to_account_info(),
+                to: self.stake.to_account_info(),
+                authority: self.member.to_account_info(),
+            },
+            signer,
+        );
+        token::transfer(cpi_ctx, amount)
+    }
 }
 
 #[derive(Accounts)]
@@ -189,6 +149,43 @@ pub struct ClaimReward<'info> {
     #[account(mut, token::authority = factory.authority, token::mint = reward_vault.mint)]
     pub factory_vault: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
+}
+impl<'info> ClaimReward<'info> {
+    pub fn transfer_to_user(&self, amount: u64) -> Result<()> {
+        let signer: &[&[&[u8]]] = &[&[
+            b"staking".as_ref(),
+            &self.staking.id.to_le_bytes(),
+            &[self.staking.bump],
+        ]];
+        let cpi_ctx = CpiContext::new_with_signer(
+            self.token_program.to_account_info(),
+            token::Transfer {
+                from: self.reward_vault.to_account_info(),
+                to: self.destination.to_account_info(),
+                authority: self.staking.to_account_info(),
+            },
+            signer,
+        );
+        token::transfer(cpi_ctx, amount)
+    }
+
+    pub fn transfer_to_factory_owner(&self, amount: u64) -> Result<()> {
+        let signer: &[&[&[u8]]] = &[&[
+            b"staking".as_ref(),
+            &self.staking.id.to_le_bytes(),
+            &[self.staking.bump],
+        ]];
+        let cpi_ctx = CpiContext::new_with_signer(
+            self.token_program.to_account_info(),
+            token::Transfer {
+                from: self.reward_vault.to_account_info(),
+                to: self.factory_vault.to_account_info(),
+                authority: self.staking.to_account_info(),
+            },
+            signer,
+        );
+        token::transfer(cpi_ctx, amount)
+    }
 }
 
 #[derive(Accounts)]
@@ -217,6 +214,26 @@ pub struct StartUnstake<'info> {
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
+impl<'info> StartUnstake<'info> {
+    pub fn transfer(&self, amount: u64) -> Result<()> {
+        let signer: &[&[&[u8]]] = &[&[
+            b"member".as_ref(),
+            &self.staking.id.to_le_bytes(),
+            self.beneficiary.to_account_info().key.as_ref(),
+            &[self.member.bump],
+        ]];
+        let cpi_ctx = CpiContext::new_with_signer(
+            self.token_program.to_account_info(),
+            token::Transfer {
+                from: self.stake.to_account_info(),
+                to: self.pending.to_account_info(),
+                authority: self.member.to_account_info(),
+            },
+            signer,
+        );
+        token::transfer(cpi_ctx, amount)
+    }
+}
 
 #[derive(Accounts)]
 pub struct EndUnstake<'info> {
@@ -240,6 +257,26 @@ pub struct EndUnstake<'info> {
     pub pending: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
+impl<'info> EndUnstake<'info> {
+    pub fn transfer(&self) -> Result<()> {
+        let signer: &[&[&[u8]]] = &[&[
+            b"member".as_ref(),
+            &self.staking.id.to_le_bytes(),
+            self.beneficiary.to_account_info().key.as_ref(),
+            &[self.member.bump],
+        ]];
+        let cpi_ctx = CpiContext::new_with_signer(
+            self.token_program.to_account_info(),
+            Transfer {
+                from: self.pending.to_account_info(),
+                to: self.available.to_account_info(),
+                authority: self.member.to_account_info(),
+            },
+            signer,
+        );
+        token::transfer(cpi_ctx, self.pending_withdrawal.amount)
+    }
+}
 
 #[derive(Accounts)]
 pub struct Withdraw<'info> {
@@ -255,4 +292,22 @@ pub struct Withdraw<'info> {
     #[account(mut)]
     pub destination: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
+}
+impl<'info> Withdraw<'info> {
+    pub fn transfer(&self, amount: u64) -> Result<()> {
+        let signer: &[&[&[u8]]] = &[&[
+            b"member".as_ref(),
+            &self.staking.id.to_le_bytes(),
+            self.beneficiary.to_account_info().key.as_ref(),
+            &[self.member.bump],
+        ]];
+        let cpi_accounts = Transfer {
+            from: self.available.to_account_info(),
+            to: self.destination.to_account_info(),
+            authority: self.member.to_account_info(),
+        };
+        let cpi_ctx =
+            CpiContext::new_with_signer(self.token_program.to_account_info(), cpi_accounts, signer);
+        token::transfer(cpi_ctx, amount)
+    }
 }

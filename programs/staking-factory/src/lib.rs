@@ -1,12 +1,13 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Transfer};
 
-use context::*;
+use context_admin::*;
+use context_user::*;
 use error::*;
 use reward::*;
 
 pub mod account;
-pub mod context;
+pub mod context_admin;
+pub mod context_user;
 pub mod error;
 pub mod reward;
 
@@ -203,139 +204,5 @@ pub mod staking_factory {
         ctx.accounts.transfer(amount)?;
 
         Ok(())
-    }
-}
-
-impl<'info> Deposit<'info> {
-    fn transfer(&self, amount: u64) -> Result<()> {
-        let cpi_ctx = CpiContext::new(
-            self.token_program.to_account_info(),
-            Transfer {
-                from: self.depositor.to_account_info(),
-                to: self.available.to_account_info(),
-                authority: self.beneficiary.to_account_info(),
-            },
-        );
-        token::transfer(cpi_ctx, amount)
-    }
-}
-
-impl<'info> Stake<'info> {
-    fn transfer(&self, amount: u64) -> Result<()> {
-        let signer: &[&[&[u8]]] = &[&[
-            b"member".as_ref(),
-            &self.staking.id.to_le_bytes(),
-            self.beneficiary.to_account_info().key.as_ref(),
-            &[self.member.bump],
-        ]];
-        let cpi_ctx = CpiContext::new_with_signer(
-            self.token_program.to_account_info(),
-            token::Transfer {
-                from: self.available.to_account_info(),
-                to: self.stake.to_account_info(),
-                authority: self.member.to_account_info(),
-            },
-            signer,
-        );
-        token::transfer(cpi_ctx, amount)
-    }
-}
-
-impl<'info> ClaimReward<'info> {
-    fn transfer_to_user(&self, amount: u64) -> Result<()> {
-        let signer: &[&[&[u8]]] = &[&[
-            b"staking".as_ref(),
-            &self.staking.id.to_le_bytes(),
-            &[self.staking.bump],
-        ]];
-        let cpi_ctx = CpiContext::new_with_signer(
-            self.token_program.to_account_info(),
-            token::Transfer {
-                from: self.reward_vault.to_account_info(),
-                to: self.destination.to_account_info(),
-                authority: self.staking.to_account_info(),
-            },
-            signer,
-        );
-        token::transfer(cpi_ctx, amount)
-    }
-
-    fn transfer_to_factory_owner(&self, amount: u64) -> Result<()> {
-        let signer: &[&[&[u8]]] = &[&[
-            b"staking".as_ref(),
-            &self.staking.id.to_le_bytes(),
-            &[self.staking.bump],
-        ]];
-        let cpi_ctx = CpiContext::new_with_signer(
-            self.token_program.to_account_info(),
-            token::Transfer {
-                from: self.reward_vault.to_account_info(),
-                to: self.factory_vault.to_account_info(),
-                authority: self.staking.to_account_info(),
-            },
-            signer,
-        );
-        token::transfer(cpi_ctx, amount)
-    }
-}
-
-impl<'info> StartUnstake<'info> {
-    fn transfer(&self, amount: u64) -> Result<()> {
-        let signer: &[&[&[u8]]] = &[&[
-            b"member".as_ref(),
-            &self.staking.id.to_le_bytes(),
-            self.beneficiary.to_account_info().key.as_ref(),
-            &[self.member.bump],
-        ]];
-        let cpi_ctx = CpiContext::new_with_signer(
-            self.token_program.to_account_info(),
-            token::Transfer {
-                from: self.stake.to_account_info(),
-                to: self.pending.to_account_info(),
-                authority: self.member.to_account_info(),
-            },
-            signer,
-        );
-        token::transfer(cpi_ctx, amount)
-    }
-}
-
-impl<'info> EndUnstake<'info> {
-    fn transfer(&self) -> Result<()> {
-        let signer: &[&[&[u8]]] = &[&[
-            b"member".as_ref(),
-            &self.staking.id.to_le_bytes(),
-            self.beneficiary.to_account_info().key.as_ref(),
-            &[self.member.bump],
-        ]];
-        let cpi_ctx = CpiContext::new_with_signer(
-            self.token_program.to_account_info(),
-            Transfer {
-                from: self.pending.to_account_info(),
-                to: self.available.to_account_info(),
-                authority: self.member.to_account_info(),
-            },
-            signer,
-        );
-        token::transfer(cpi_ctx, self.pending_withdrawal.amount)
-    }
-}
-
-impl<'info> Withdraw<'info> {
-    fn transfer(&self, amount: u64) -> Result<()> {
-        let signer: &[&[&[u8]]] = &[&[
-            b"member".as_ref(),
-            &self.staking.id.to_le_bytes(),
-            self.beneficiary.to_account_info().key.as_ref(),
-            &[self.member.bump],
-        ]];
-        let cpi_accounts = Transfer {
-            from: self.available.to_account_info(),
-            to: self.destination.to_account_info(),
-            authority: self.member.to_account_info(),
-        };
-        let cpi_ctx =
-            CpiContext::new_with_signer(self.token_program.to_account_info(), cpi_accounts, signer);
-        token::transfer(cpi_ctx, amount)
     }
 }
