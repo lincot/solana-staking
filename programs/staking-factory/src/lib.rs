@@ -3,12 +3,14 @@ use anchor_lang::prelude::*;
 use context_admin::*;
 use context_user::*;
 use error::*;
+use event::*;
 use reward::*;
 
 pub mod account;
 pub mod context_admin;
 pub mod context_user;
 pub mod error;
+pub mod event;
 pub mod reward;
 
 declare_id!("74Gn5o8MXGWuNgApSz7kkfcdWHGpVAcrgs41ZfW1bHbK");
@@ -23,6 +25,8 @@ pub mod staking_factory {
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         ctx.accounts.factory.bump = *ctx.bumps.get("factory").unwrap();
         ctx.accounts.factory.authority = ctx.accounts.authority.key();
+
+        emit!(InitializeEvent {});
 
         Ok(())
     }
@@ -54,6 +58,12 @@ pub mod staking_factory {
         ctx.accounts.stakes_history.bump = *ctx.bumps.get("stakes_history").unwrap();
 
         ctx.accounts.factory.stakings_count += 1;
+
+        emit!(CreateStakingEvent {
+            id: ctx.accounts.staking.id,
+            authority: ctx.accounts.staking.authority,
+            reward_params,
+        });
 
         Ok(())
     }
@@ -91,6 +101,11 @@ pub mod staking_factory {
             ctx.accounts.config_history.len += 1;
         }
 
+        emit!(ChangeConfigEvent {
+            id: ctx.accounts.staking.id,
+            new_reward_params,
+        });
+
         Ok(())
     }
 
@@ -102,11 +117,20 @@ pub mod staking_factory {
 
         ctx.accounts.pending_withdrawal.bump = *ctx.bumps.get("pending_withdrawal").unwrap();
 
+        emit!(RegisterMemberEvent {
+            beneficiary: ctx.accounts.beneficiary.key()
+        });
+
         Ok(())
     }
 
     pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
         ctx.accounts.transfer(amount)?;
+
+        emit!(DepositEvent {
+            beneficiary: ctx.accounts.beneficiary.key(),
+            amount,
+        });
 
         Ok(())
     }
@@ -131,6 +155,11 @@ pub mod staking_factory {
         ctx.accounts.staking.stakes_sum = (ctx.accounts.staking.stakes_sum)
             .checked_add(amount)
             .ok_or(StakingError::Overflow)?;
+
+        emit!(StakeEvent {
+            beneficiary: ctx.accounts.beneficiary.key(),
+            amount,
+        });
 
         Ok(())
     }
@@ -165,6 +194,13 @@ pub mod staking_factory {
 
         ctx.accounts.member.unclaimed_rewards = 0;
 
+        emit!(ClaimRewardEvent {
+            beneficiary: ctx.accounts.beneficiary.key(),
+            total_amount,
+            amount_to_user,
+            factory_fee,
+        });
+
         Ok(())
     }
 
@@ -191,6 +227,11 @@ pub mod staking_factory {
 
         ctx.accounts.staking.stakes_sum -= amount;
 
+        emit!(StartUnstakeEvent {
+            beneficiary: ctx.accounts.beneficiary.key(),
+            amount,
+        });
+
         Ok(())
     }
 
@@ -205,11 +246,20 @@ pub mod staking_factory {
 
         ctx.accounts.pending_withdrawal.active = false;
 
+        emit!(EndUnstakeEvent {
+            beneficiary: ctx.accounts.beneficiary.key(),
+        });
+
         Ok(())
     }
 
     pub fn withdraw(ctx: Context<Withdraw>, amount: u64) -> Result<()> {
         ctx.accounts.transfer(amount)?;
+
+        emit!(WithdrawEvent {
+            beneficiary: ctx.accounts.beneficiary.key(),
+            amount,
+        });
 
         Ok(())
     }

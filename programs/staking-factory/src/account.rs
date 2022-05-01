@@ -47,7 +47,7 @@ pub struct StakesHistory {
     pub offsets: [u8; 32],
 }
 impl StakesHistory {
-    pub const LEN: usize = 1 + 1 + 8 * 128 + 1 * 32;
+    pub const LEN: usize = 1 + 1 + 8 * 128 + 32;
 }
 
 #[account]
