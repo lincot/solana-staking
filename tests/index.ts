@@ -60,7 +60,7 @@ describe("interest rate", () => {
   it("deposits", async () => {
     await deposit(ctx, 0, ctx.user1, 100);
 
-    let memberAccount = await ctx.program.account.member.fetch(
+    const memberAccount = await ctx.program.account.member.fetch(
       await ctx.member(ctx.user1.publicKey, 0)
     );
 
@@ -70,7 +70,7 @@ describe("interest rate", () => {
   it("stakes", async () => {
     await stake(ctx, 0, ctx.user1, 100);
 
-    let memberAccount = await ctx.program.account.member.fetch(
+    const memberAccount = await ctx.program.account.member.fetch(
       await ctx.member(ctx.user1.publicKey, 0)
     );
 
@@ -97,7 +97,7 @@ describe("interest rate", () => {
   it("starts unstake", async () => {
     await startUnstake(ctx, 0, ctx.user1, 100);
 
-    let memberAccount = await ctx.program.account.member.fetch(
+    const memberAccount = await ctx.program.account.member.fetch(
       await ctx.member(ctx.user1.publicKey, 0)
     );
 
@@ -116,7 +116,7 @@ describe("interest rate", () => {
   it("ends unstake", async () => {
     await endUnstake(ctx, 0, ctx.user1);
 
-    let memberAccount = await ctx.program.account.member.fetch(
+    const memberAccount = await ctx.program.account.member.fetch(
       await ctx.member(ctx.user1.publicKey, 0)
     );
 
@@ -154,7 +154,7 @@ describe("proportional", () => {
     await deposit(ctx, 1, ctx.user1, 100);
     await deposit(ctx, 1, ctx.user2, 100);
 
-    let memberAccount = await ctx.program.account.member.fetch(
+    const memberAccount = await ctx.program.account.member.fetch(
       await ctx.member(ctx.user1.publicKey, 1)
     );
 
@@ -165,7 +165,7 @@ describe("proportional", () => {
     await stake(ctx, 1, ctx.user1, 100);
     await stake(ctx, 1, ctx.user2, 100);
 
-    let memberAccount = await ctx.program.account.member.fetch(
+    const memberAccount = await ctx.program.account.member.fetch(
       await ctx.member(ctx.user1.publicKey, 1)
     );
 
@@ -219,7 +219,7 @@ describe("fixed", () => {
   it("deposits", async () => {
     await deposit(ctx, 2, ctx.user1, 100);
 
-    let memberAccount = await ctx.program.account.member.fetch(
+    const memberAccount = await ctx.program.account.member.fetch(
       await ctx.member(ctx.user1.publicKey, 2)
     );
 
@@ -229,7 +229,7 @@ describe("fixed", () => {
   it("stakes", async () => {
     await stake(ctx, 2, ctx.user1, 100);
 
-    let memberAccount = await ctx.program.account.member.fetch(
+    const memberAccount = await ctx.program.account.member.fetch(
       await ctx.member(ctx.user1.publicKey, 2)
     );
 

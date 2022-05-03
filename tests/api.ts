@@ -1,5 +1,5 @@
 import { BN } from "@project-serum/anchor";
-import { Keypair, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
+import { Keypair, SystemProgram } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Context } from "./ctx";
 import { mintTo } from "./token";
@@ -24,25 +24,22 @@ export async function createStaking(
   const stakingId = (await ctx.program.account.factory.fetch(ctx.factory))
     .stakingsCount;
   const staking = await ctx.staking(stakingId);
-  const rewardVault = await ctx.rewardVault(staking);
 
   await ctx.program.methods
     .createStaking(ctx.stakeMint, withdrawalTimelock, rewardType)
     .accounts({
       factory: ctx.factory,
       staking,
-      rewardVault,
       configHistory: await ctx.configHistory(staking),
       stakesHistory: await ctx.stakesHistory(staking),
       rewardMint: ctx.rewardMint,
       authority: ctx.stakingAuthority.publicKey,
-      rent: SYSVAR_RENT_PUBKEY,
       systemProgram: SystemProgram.programId,
     })
     .signers([ctx.stakingAuthority])
     .rpc();
 
-  await mintTo(ctx, rewardVault, ctx.mintAuthority, 1_000_000);
+  await mintTo(ctx, await ctx.rewardATA(staking), ctx.mintAuthority, 1_000_000);
 }
 
 export async function changeConfig(
@@ -142,11 +139,11 @@ export async function claimReward(
       factory: ctx.factory,
       factoryVault: ctx.factoryVault,
       staking,
+      stakingVault: await ctx.rewardATA(staking),
       configHistory: await ctx.configHistory(staking),
       stakesHistory: await ctx.stakesHistory(staking),
       beneficiary: beneficiary.publicKey,
       member: await ctx.member(beneficiary.publicKey, stakingId),
-      rewardVault: await ctx.rewardVault(staking),
       to: await ctx.rewardATA(beneficiary.publicKey),
       tokenProgram: TOKEN_PROGRAM_ID,
     })

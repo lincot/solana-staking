@@ -14,7 +14,6 @@ impl Factory {
 #[account]
 pub struct Staking {
     pub bump: u8,
-    pub bump_vault: u8,
     pub authority: Pubkey,
     pub id: u16,
     pub withdrawal_timelock: u32,
@@ -24,7 +23,7 @@ pub struct Staking {
     pub stakes_sum: u64,
 }
 impl Staking {
-    pub const LEN: usize = 1 + 1 + 32 + 2 + 4 + 32 + 32 + RewardParams::LEN + 8;
+    pub const LEN: usize = 1 + 32 + 2 + 4 + 32 + 32 + RewardParams::LEN + 8;
 }
 
 #[account]

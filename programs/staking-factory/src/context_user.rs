@@ -77,9 +77,11 @@ pub struct Stake<'info> {
 pub struct ClaimReward<'info> {
     #[account(seeds = [b"factory"], bump = factory.bump)]
     pub factory: Account<'info, Factory>,
-    #[account(mut, token::authority = factory.authority, token::mint = reward_vault.mint)]
+    #[account(mut, token::authority = factory.authority, token::mint = staking.reward_mint)]
     pub factory_vault: Account<'info, TokenAccount>,
     pub staking: Account<'info, Staking>,
+    #[account(mut, associated_token::authority = staking, associated_token::mint = staking.reward_mint)]
+    pub staking_vault: Account<'info, TokenAccount>,
     #[account(seeds = [b"config_history", staking.key().as_ref()], bump = config_history.bump)]
     pub config_history: Box<Account<'info, ConfigHistory>>,
     #[account(mut, seeds = [b"stakes_history", staking.key().as_ref()], bump = stakes_history.bump)]
@@ -91,8 +93,6 @@ pub struct ClaimReward<'info> {
         bump = member.bump,
     )]
     pub member: Account<'info, Member>,
-    #[account(mut, seeds = [b"reward_vault", staking.key().as_ref()], bump = staking.bump_vault)]
-    pub reward_vault: Account<'info, TokenAccount>,
     #[account(mut)]
     pub to: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
@@ -107,7 +107,7 @@ impl<'info> ClaimReward<'info> {
         let cpi_ctx = CpiContext::new_with_signer(
             self.token_program.to_account_info(),
             token::Transfer {
-                from: self.reward_vault.to_account_info(),
+                from: self.staking_vault.to_account_info(),
                 to: self.to.to_account_info(),
                 authority: self.staking.to_account_info(),
             },
@@ -125,7 +125,7 @@ impl<'info> ClaimReward<'info> {
         let cpi_ctx = CpiContext::new_with_signer(
             self.token_program.to_account_info(),
             token::Transfer {
-                from: self.reward_vault.to_account_info(),
+                from: self.staking_vault.to_account_info(),
                 to: self.factory_vault.to_account_info(),
                 authority: self.staking.to_account_info(),
             },

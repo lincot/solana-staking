@@ -42,7 +42,6 @@ pub mod staking_factory {
         reward_params.validate_fields()?;
 
         ctx.accounts.staking.bump = *ctx.bumps.get("staking").unwrap();
-        ctx.accounts.staking.bump_vault = *ctx.bumps.get("reward_vault").unwrap();
         ctx.accounts.staking.authority = ctx.accounts.authority.key();
         ctx.accounts.staking.id = ctx.accounts.factory.stakings_count;
         ctx.accounts.staking.stake_mint = stake_mint;

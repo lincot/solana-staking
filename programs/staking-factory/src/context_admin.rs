@@ -1,6 +1,6 @@
 use crate::account::*;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::token::{Mint, Token};
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
@@ -27,15 +27,6 @@ pub struct CreateStaking<'info> {
     #[account(
         init,
         payer = authority,
-        seeds = [b"reward_vault", staking.key().as_ref()],
-        bump,
-        token::authority = staking,
-        token::mint = reward_mint,
-    )]
-    pub reward_vault: Box<Account<'info, TokenAccount>>,
-    #[account(
-        init,
-        payer = authority,
         seeds = [b"config_history", staking.key().as_ref()],
         bump,
         space = 8 + ConfigHistory::LEN,
@@ -51,7 +42,6 @@ pub struct CreateStaking<'info> {
     pub stakes_history: Box<Account<'info, StakesHistory>>,
     #[account(mut)]
     pub authority: Signer<'info>,
-    pub rent: Sysvar<'info, Rent>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
