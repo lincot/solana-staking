@@ -12,12 +12,9 @@ pub enum StakingError {
     #[msg("Cannot change staking type, may only change conditions")]
     CannotChangeStakingType,
     /// 6003 0x1773
-    #[msg("Stakes history must be provided")]
-    StakesHistory,
+    #[msg("Not enough tokens for operation")]
+    InsufficientBalance,
     /// 6004 0x1774
-    #[msg("There is nothing to claim")]
-    NothingToClaim,
-    /// 6005 0x1775
     #[msg("The unstake timelock has not yet expired")]
     UnstakeTimelock,
 }

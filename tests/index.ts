@@ -60,24 +60,22 @@ describe("interest rate", () => {
   it("deposits", async () => {
     await deposit(ctx, 0, ctx.user1, 100);
 
-    expect(
-      await (await ctx.available(ctx.user1.publicKey, 0)).amount(ctx)
-    ).to.eql(100);
-  });
+    let memberAccount = await ctx.program.account.member.fetch(
+      await ctx.member(ctx.user1.publicKey, 0)
+    );
 
-  it("fails to claim before staking", async () => {
-    await expect(claimReward(ctx, 0, ctx.user1)).to.be.rejected;
+    expect(memberAccount.availableAmount.toNumber()).to.eq(100);
   });
 
   it("stakes", async () => {
     await stake(ctx, 0, ctx.user1, 100);
 
-    expect(
-      await (await ctx.available(ctx.user1.publicKey, 0)).amount(ctx)
-    ).to.eql(0);
-    expect(await (await ctx.stake(ctx.user1.publicKey, 0)).amount(ctx)).to.eql(
-      100
+    let memberAccount = await ctx.program.account.member.fetch(
+      await ctx.member(ctx.user1.publicKey, 0)
     );
+
+    expect(memberAccount.availableAmount.toNumber()).to.eq(0);
+    expect(memberAccount.stakeAmount.toNumber()).to.eq(100);
   });
 
   it("waits", async () => {
@@ -90,7 +88,7 @@ describe("interest rate", () => {
     expect(
       await (await ctx.rewardATA(ctx.user1.publicKey)).amount(ctx)
     ).to.be.oneOf([39, 49, 59]);
-    expect(await ctx.factoryVault.amount(ctx)).to.eql(1);
+    expect(await ctx.factoryVault.amount(ctx)).to.eq(1);
 
     await burnAll(ctx, await ctx.rewardATA(ctx.user1.publicKey), ctx.user1);
     await burnAll(ctx, ctx.factoryVault, ctx.factoryAuthority);
@@ -99,12 +97,12 @@ describe("interest rate", () => {
   it("starts unstake", async () => {
     await startUnstake(ctx, 0, ctx.user1, 100);
 
-    expect(await (await ctx.stake(ctx.user1.publicKey, 0)).amount(ctx)).to.eql(
-      0
+    let memberAccount = await ctx.program.account.member.fetch(
+      await ctx.member(ctx.user1.publicKey, 0)
     );
-    expect(
-      await (await ctx.pending(ctx.user1.publicKey, 0)).amount(ctx)
-    ).to.eql(100);
+
+    expect(memberAccount.stakeAmount.toNumber()).to.eq(0);
+    expect(memberAccount.pendingAmount.toNumber()).to.eq(100);
   });
 
   it("fails to end unstake before timelock", async () => {
@@ -118,15 +116,17 @@ describe("interest rate", () => {
   it("ends unstake", async () => {
     await endUnstake(ctx, 0, ctx.user1);
 
-    expect(
-      await (await ctx.available(ctx.user1.publicKey, 0)).amount(ctx)
-    ).to.eql(100);
+    let memberAccount = await ctx.program.account.member.fetch(
+      await ctx.member(ctx.user1.publicKey, 0)
+    );
+
+    expect(memberAccount.availableAmount.toNumber()).to.eq(100);
   });
 
   it("withdraws", async () => {
     await withdraw(ctx, 0, ctx.user1);
 
-    expect(await (await ctx.stakeATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
+    expect(await (await ctx.stakeATA(ctx.user1.publicKey)).amount(ctx)).to.eq(
       100
     );
   });
@@ -154,42 +154,40 @@ describe("proportional", () => {
     await deposit(ctx, 1, ctx.user1, 100);
     await deposit(ctx, 1, ctx.user2, 100);
 
-    expect(
-      await (await ctx.available(ctx.user1.publicKey, 1)).amount(ctx)
-    ).to.eql(100);
-  });
+    let memberAccount = await ctx.program.account.member.fetch(
+      await ctx.member(ctx.user1.publicKey, 1)
+    );
 
-  it("fails to claim before staking", async () => {
-    await expect(claimReward(ctx, 1, ctx.user1)).to.be.rejected;
+    expect(memberAccount.availableAmount.toNumber()).to.eq(100);
   });
 
   it("stakes", async () => {
     await stake(ctx, 1, ctx.user1, 100);
     await stake(ctx, 1, ctx.user2, 100);
 
-    expect(
-      await (await ctx.available(ctx.user1.publicKey, 1)).amount(ctx)
-    ).to.eql(0);
-    expect(await (await ctx.stake(ctx.user1.publicKey, 1)).amount(ctx)).to.eql(
-      100
+    let memberAccount = await ctx.program.account.member.fetch(
+      await ctx.member(ctx.user1.publicKey, 1)
     );
+
+    expect(memberAccount.availableAmount.toNumber()).to.eq(0);
+    expect(memberAccount.stakeAmount.toNumber()).to.eq(100);
   });
 
   it("waits", async () => {
-    await sleep(3000);
+    await sleep(2000);
   });
 
   it("claims", async () => {
     await claimReward(ctx, 1, ctx.user1);
     await claimReward(ctx, 1, ctx.user2);
 
-    expect(await (await ctx.rewardATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
+    expect(await (await ctx.rewardATA(ctx.user1.publicKey)).amount(ctx)).to.eq(
       49
     );
-    expect(await (await ctx.rewardATA(ctx.user2.publicKey)).amount(ctx)).to.eql(
+    expect(await (await ctx.rewardATA(ctx.user2.publicKey)).amount(ctx)).to.eq(
       49
     );
-    expect(await ctx.factoryVault.amount(ctx)).to.eql(2);
+    expect(await ctx.factoryVault.amount(ctx)).to.eq(2);
 
     await burnAll(ctx, await ctx.rewardATA(ctx.user1.publicKey), ctx.user1);
     await burnAll(ctx, await ctx.rewardATA(ctx.user2.publicKey), ctx.user2);
@@ -221,36 +219,34 @@ describe("fixed", () => {
   it("deposits", async () => {
     await deposit(ctx, 2, ctx.user1, 100);
 
-    expect(
-      await (await ctx.available(ctx.user1.publicKey, 2)).amount(ctx)
-    ).to.eql(100);
-  });
+    let memberAccount = await ctx.program.account.member.fetch(
+      await ctx.member(ctx.user1.publicKey, 2)
+    );
 
-  it("fails to claim before staking", async () => {
-    await expect(claimReward(ctx, 2, ctx.user1)).to.be.rejected;
+    expect(memberAccount.availableAmount.toNumber()).to.eq(100);
   });
 
   it("stakes", async () => {
     await stake(ctx, 2, ctx.user1, 100);
 
-    expect(
-      await (await ctx.available(ctx.user1.publicKey, 2)).amount(ctx)
-    ).to.eql(0);
-    expect(await (await ctx.stake(ctx.user1.publicKey, 2)).amount(ctx)).to.eql(
-      100
+    let memberAccount = await ctx.program.account.member.fetch(
+      await ctx.member(ctx.user1.publicKey, 2)
     );
+
+    expect(memberAccount.availableAmount.toNumber()).to.eq(0);
+    expect(memberAccount.stakeAmount.toNumber()).to.eq(100);
   });
 
   it("waits", async () => {
-    await sleep(3500);
+    await sleep(2500);
   });
 
   it("claims", async () => {
     await claimReward(ctx, 2, ctx.user1);
 
-    expect(await (await ctx.rewardATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
+    expect(await (await ctx.rewardATA(ctx.user1.publicKey)).amount(ctx)).to.eq(
       97
     );
-    expect(await ctx.factoryVault.amount(ctx)).to.eql(3);
+    expect(await ctx.factoryVault.amount(ctx)).to.eq(3);
   });
 });

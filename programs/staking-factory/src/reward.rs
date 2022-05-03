@@ -1,7 +1,6 @@
 use crate::account::*;
 use crate::error::*;
 use anchor_lang::prelude::*;
-use anchor_spl::token::TokenAccount;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone, Debug)]
 pub enum RewardParams {
@@ -156,7 +155,6 @@ pub fn calculate_rewards<'info>(
     staking: &Account<'info, Staking>,
     config_history: &Account<'info, ConfigHistory>,
     member: &mut Account<'info, Member>,
-    stake: &Account<'info, TokenAccount>,
     stakes_history: &mut Account<'info, StakesHistory>,
 ) -> Result<u64> {
     let mut res = 0u64;
@@ -165,7 +163,7 @@ pub fn calculate_rewards<'info>(
         let offset = stakes_history.offsets[i as usize];
         let reward_amount = {
             (config_history.reward_params[i as usize]).get_reward_amount(
-                stake.amount,
+                member.stake_amount,
                 staking.stakes_sum,
                 &mut member.last_reward_ts,
                 current_ts,

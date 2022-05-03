@@ -60,7 +60,8 @@ export async function findATA(
       ctx.connection,
       ctx.payer,
       mint,
-      owner
+      owner,
+      true
     )
   ).address;
 

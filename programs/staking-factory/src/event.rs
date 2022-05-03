@@ -37,8 +37,7 @@ pub struct StakeEvent {
 #[event]
 pub struct ClaimRewardEvent {
     pub beneficiary: Pubkey,
-    pub total_amount: u64,
-    pub amount_to_user: u64,
+    pub amount_to_beneficiary: u64,
     pub factory_fee: u64,
 }
 

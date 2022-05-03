@@ -111,9 +111,6 @@ pub mod staking_factory {
 
     pub fn register_member(ctx: Context<RegisterMember>) -> Result<()> {
         ctx.accounts.member.bump = *ctx.bumps.get("member").unwrap();
-        ctx.accounts.member.bump_available = *ctx.bumps.get("available").unwrap();
-        ctx.accounts.member.bump_stake = *ctx.bumps.get("stake").unwrap();
-        ctx.accounts.member.bump_pending = *ctx.bumps.get("pending").unwrap();
 
         ctx.accounts.pending_withdrawal.bump = *ctx.bumps.get("pending_withdrawal").unwrap();
 
@@ -127,6 +124,8 @@ pub mod staking_factory {
     pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
         ctx.accounts.transfer(amount)?;
 
+        ctx.accounts.member.available_amount += amount;
+
         emit!(DepositEvent {
             beneficiary: ctx.accounts.beneficiary.key(),
             amount,
@@ -138,23 +137,22 @@ pub mod staking_factory {
     pub fn stake(ctx: Context<Stake>, amount: u64) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp as u32;
 
+        if ctx.accounts.member.available_amount < amount {
+            return err!(StakingError::InsufficientBalance);
+        }
+
         let rewards = calculate_rewards(
             ts,
             &ctx.accounts.staking,
             &ctx.accounts.config_history,
             &mut ctx.accounts.member,
-            &ctx.accounts.stake,
             &mut ctx.accounts.stakes_history,
         )?;
-        ctx.accounts.member.unclaimed_rewards = (ctx.accounts.member.unclaimed_rewards)
-            .checked_add(rewards)
-            .ok_or(StakingError::Overflow)?;
+        ctx.accounts.member.rewards_amount += rewards;
 
-        ctx.accounts.transfer(amount)?;
-
-        ctx.accounts.staking.stakes_sum = (ctx.accounts.staking.stakes_sum)
-            .checked_add(amount)
-            .ok_or(StakingError::Overflow)?;
+        ctx.accounts.member.available_amount -= amount;
+        ctx.accounts.member.stake_amount += amount;
+        ctx.accounts.staking.stakes_sum += amount;
 
         emit!(StakeEvent {
             beneficiary: ctx.accounts.beneficiary.key(),
@@ -172,32 +170,22 @@ pub mod staking_factory {
             &ctx.accounts.staking,
             &ctx.accounts.config_history,
             &mut ctx.accounts.member,
-            &ctx.accounts.stake,
             &mut ctx.accounts.stakes_history,
         )?;
+        ctx.accounts.member.rewards_amount += rewards;
 
-        let total_amount = rewards
-            .checked_add(ctx.accounts.member.unclaimed_rewards)
-            .ok_or(StakingError::Overflow)?;
-        if total_amount == 0 {
-            return err!(StakingError::NothingToClaim);
-        }
-
-        let factory_fee = total_amount
-            .checked_mul(FACTORY_FEE_NUM)
-            .ok_or(StakingError::Overflow)?
-            / FACTORY_FEE_DENOM;
-        let amount_to_user = total_amount - factory_fee;
-
-        ctx.accounts.transfer_to_user(amount_to_user)?;
+        let factory_fee = ctx.accounts.member.rewards_amount * FACTORY_FEE_NUM / FACTORY_FEE_DENOM;
         ctx.accounts.transfer_to_factory_owner(factory_fee)?;
 
-        ctx.accounts.member.unclaimed_rewards = 0;
+        let amount_to_beneficiary = ctx.accounts.member.rewards_amount - factory_fee;
+        ctx.accounts
+            .transfer_to_beneficiary(amount_to_beneficiary)?;
+
+        ctx.accounts.member.rewards_amount = 0;
 
         emit!(ClaimRewardEvent {
             beneficiary: ctx.accounts.beneficiary.key(),
-            total_amount,
-            amount_to_user,
+            amount_to_beneficiary,
             factory_fee,
         });
 
@@ -207,25 +195,26 @@ pub mod staking_factory {
     pub fn start_unstake(ctx: Context<StartUnstake>, amount: u64) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp as u32;
 
+        if ctx.accounts.member.stake_amount < amount {
+            return err!(StakingError::InsufficientBalance);
+        }
+
         let rewards = calculate_rewards(
             ts,
             &ctx.accounts.staking,
             &ctx.accounts.config_history,
             &mut ctx.accounts.member,
-            &ctx.accounts.stake,
             &mut ctx.accounts.stakes_history,
         )?;
-        ctx.accounts.member.unclaimed_rewards = (ctx.accounts.member.unclaimed_rewards)
-            .checked_add(rewards)
-            .ok_or(StakingError::Overflow)?;
-
-        ctx.accounts.transfer(amount)?;
+        ctx.accounts.member.rewards_amount += rewards;
 
         ctx.accounts.pending_withdrawal.active = true;
         ctx.accounts.pending_withdrawal.end_ts = ts + ctx.accounts.staking.withdrawal_timelock;
         ctx.accounts.pending_withdrawal.amount = amount;
 
+        ctx.accounts.member.stake_amount -= amount;
         ctx.accounts.staking.stakes_sum -= amount;
+        ctx.accounts.member.pending_amount += amount;
 
         emit!(StartUnstakeEvent {
             beneficiary: ctx.accounts.beneficiary.key(),
@@ -242,7 +231,7 @@ pub mod staking_factory {
             return err!(StakingError::UnstakeTimelock);
         }
 
-        ctx.accounts.transfer()?;
+        ctx.accounts.member.available_amount += ctx.accounts.member.pending_amount;
 
         ctx.accounts.pending_withdrawal.active = false;
 
@@ -254,7 +243,13 @@ pub mod staking_factory {
     }
 
     pub fn withdraw(ctx: Context<Withdraw>, amount: u64) -> Result<()> {
+        if ctx.accounts.member.available_amount < amount {
+            return err!(StakingError::InsufficientBalance);
+        }
+
         ctx.accounts.transfer(amount)?;
+
+        ctx.accounts.member.available_amount -= amount;
 
         emit!(WithdrawEvent {
             beneficiary: ctx.accounts.beneficiary.key(),

@@ -99,39 +99,6 @@ export class Context {
     ]);
   }
 
-  async available(
-    user: PublicKey,
-    stakingId: number | BN
-  ): Promise<TokenAccount> {
-    const member = await this.member(user, stakingId);
-    const address = await findPDA(this, [
-      Buffer.from("available"),
-      member.toBuffer(),
-    ]);
-    return new TokenAccount(address, this.stakeMint);
-  }
-
-  async stake(user: PublicKey, stakingId: number | BN): Promise<TokenAccount> {
-    const member = await this.member(user, stakingId);
-    const address = await findPDA(this, [
-      Buffer.from("stake"),
-      member.toBuffer(),
-    ]);
-    return new TokenAccount(address, this.stakeMint);
-  }
-
-  async pending(
-    user: PublicKey,
-    stakingId: number | BN
-  ): Promise<TokenAccount> {
-    const member = await this.member(user, stakingId);
-    const address = await findPDA(this, [
-      Buffer.from("pending"),
-      member.toBuffer(),
-    ]);
-    return new TokenAccount(address, this.stakeMint);
-  }
-
   async stakeATA(owner: PublicKey): Promise<TokenAccount> {
     return await findATA(this, owner, this.stakeMint);
   }

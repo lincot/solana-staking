@@ -53,14 +53,14 @@ impl StakesHistory {
 #[account]
 pub struct Member {
     pub bump: u8,
-    pub bump_available: u8,
-    pub bump_stake: u8,
-    pub bump_pending: u8,
+    pub available_amount: u64,
+    pub stake_amount: u64,
+    pub pending_amount: u64,
+    pub rewards_amount: u64,
     pub last_reward_ts: u32,
-    pub unclaimed_rewards: u64,
 }
 impl Member {
-    pub const LEN: usize = 1 + 1 + 1 + 1 + 4 + 8;
+    pub const LEN: usize = 1 + 8 + 8 + 8 + 8 + 4;
 }
 
 #[account]
