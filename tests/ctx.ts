@@ -19,6 +19,7 @@ export class Context {
   factoryVault: TokenAccount;
 
   stakingAuthority: Keypair;
+  stakingId: number;
 
   user1: Keypair;
   user2: Keypair;
@@ -52,50 +53,42 @@ export class Context {
     this.factoryVault = await this.rewardATA(this.factoryAuthority.publicKey);
   }
 
-  async staking(stakingId: number | BN): Promise<PublicKey> {
+  async staking(): Promise<PublicKey> {
     return await findPDA(this, [
       Buffer.from("staking"),
-      new BN(stakingId).toArrayLike(Buffer, "le", 2),
+      new BN(this.stakingId).toArrayLike(Buffer, "le", 2),
     ]);
   }
 
-  async rewardVault(staking: PublicKey): Promise<TokenAccount> {
+  async rewardVault(): Promise<TokenAccount> {
     return new TokenAccount(
-      await findPDA(this, [Buffer.from("reward_vault"), staking.toBuffer()]),
+      await findPDA(this, [
+        Buffer.from("reward_vault"),
+        (await this.staking()).toBuffer(),
+      ]),
       this.rewardMint
     );
   }
 
-  async configHistory(staking: PublicKey): Promise<PublicKey> {
+  async configHistory(): Promise<PublicKey> {
     return await findPDA(this, [
       Buffer.from("config_history"),
-      staking.toBuffer(),
+      (await this.staking()).toBuffer(),
     ]);
   }
 
-  async stakesHistory(staking: PublicKey): Promise<PublicKey> {
+  async stakesHistory(): Promise<PublicKey> {
     return await findPDA(this, [
       Buffer.from("stakes_history"),
-      staking.toBuffer(),
+      (await this.staking()).toBuffer(),
     ]);
   }
 
-  async member(user: PublicKey, stakingId: number | BN): Promise<PublicKey> {
+  async member(user: PublicKey): Promise<PublicKey> {
     return await findPDA(this, [
       Buffer.from("member"),
-      new BN(stakingId).toArrayLike(Buffer, "le", 2),
+      new BN(this.stakingId).toArrayLike(Buffer, "le", 2),
       user.toBuffer(),
-    ]);
-  }
-
-  async pendingWithdrawal(
-    user: PublicKey,
-    stakingId: number | BN
-  ): Promise<PublicKey> {
-    const member = await this.member(user, stakingId);
-    return await findPDA(this, [
-      Buffer.from("pending_withdrawal"),
-      member.toBuffer(),
     ]);
   }
 

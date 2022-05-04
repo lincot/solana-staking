@@ -15,14 +15,6 @@ pub struct RegisterMember<'info> {
         space = 8 + Member::LEN,
     )]
     pub member: Account<'info, Member>,
-    #[account(
-        init,
-        payer = beneficiary,
-        seeds = [b"pending_withdrawal", member.key().as_ref()],
-        bump,
-        space = 8 + PendingWithdrawal::LEN,
-    )]
-    pub pending_withdrawal: Account<'info, PendingWithdrawal>,
     pub system_program: Program<'info, System>,
 }
 
@@ -147,15 +139,9 @@ pub struct StartUnstake<'info> {
         mut,
         seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()],
         bump = member.bump,
+        constraint = !member.pending_unstake_active,
     )]
     pub member: Account<'info, Member>,
-    #[account(
-        mut,
-        seeds = [b"pending_withdrawal", member.key().as_ref()],
-        bump = pending_withdrawal.bump,
-        constraint = !pending_withdrawal.active,
-    )]
-    pub pending_withdrawal: Account<'info, PendingWithdrawal>,
 }
 
 #[derive(Accounts)]
@@ -166,15 +152,9 @@ pub struct EndUnstake<'info> {
         mut,
         seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()],
         bump = member.bump,
+        constraint = member.pending_unstake_active,
     )]
     pub member: Account<'info, Member>,
-    #[account(
-        mut,
-        seeds = [b"pending_withdrawal", member.key().as_ref()],
-        bump = pending_withdrawal.bump,
-        constraint = pending_withdrawal.active,
-    )]
-    pub pending_withdrawal: Account<'info, PendingWithdrawal>,
 }
 
 #[derive(Accounts)]

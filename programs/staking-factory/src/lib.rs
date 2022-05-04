@@ -34,7 +34,7 @@ pub mod staking_factory {
     pub fn create_staking(
         ctx: Context<CreateStaking>,
         stake_mint: Pubkey,
-        withdrawal_timelock: u32,
+        unstake_timelock: u32,
         reward_params: RewardParams,
     ) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp as u32;
@@ -46,7 +46,7 @@ pub mod staking_factory {
         ctx.accounts.staking.id = ctx.accounts.factory.stakings_count;
         ctx.accounts.staking.stake_mint = stake_mint;
         ctx.accounts.staking.reward_mint = ctx.accounts.reward_mint.key();
-        ctx.accounts.staking.withdrawal_timelock = withdrawal_timelock;
+        ctx.accounts.staking.unstake_timelock = unstake_timelock;
         ctx.accounts.staking.reward_params = reward_params;
 
         ctx.accounts.config_history.bump = *ctx.bumps.get("config_history").unwrap();
@@ -110,8 +110,6 @@ pub mod staking_factory {
 
     pub fn register_member(ctx: Context<RegisterMember>) -> Result<()> {
         ctx.accounts.member.bump = *ctx.bumps.get("member").unwrap();
-
-        ctx.accounts.pending_withdrawal.bump = *ctx.bumps.get("pending_withdrawal").unwrap();
 
         emit!(RegisterMemberEvent {
             beneficiary: ctx.accounts.beneficiary.key()
@@ -207,9 +205,8 @@ pub mod staking_factory {
         )?;
         ctx.accounts.member.rewards_amount += rewards;
 
-        ctx.accounts.pending_withdrawal.active = true;
-        ctx.accounts.pending_withdrawal.end_ts = ts + ctx.accounts.staking.withdrawal_timelock;
-        ctx.accounts.pending_withdrawal.amount = amount;
+        ctx.accounts.member.pending_unstake_active = true;
+        ctx.accounts.member.pending_unstake_end_ts = ts + ctx.accounts.staking.unstake_timelock;
 
         ctx.accounts.member.stake_amount -= amount;
         ctx.accounts.staking.stakes_sum -= amount;
@@ -226,13 +223,14 @@ pub mod staking_factory {
     pub fn end_unstake(ctx: Context<EndUnstake>) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp as u32;
 
-        if ctx.accounts.pending_withdrawal.end_ts > ts {
+        if ctx.accounts.member.pending_unstake_end_ts > ts {
             return err!(StakingError::UnstakeTimelock);
         }
 
         ctx.accounts.member.available_amount += ctx.accounts.member.pending_amount;
+        ctx.accounts.member.pending_amount = 0;
 
-        ctx.accounts.pending_withdrawal.active = false;
+        ctx.accounts.member.pending_unstake_active = false;
 
         emit!(EndUnstakeEvent {
             beneficiary: ctx.accounts.beneficiary.key(),

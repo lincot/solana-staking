@@ -16,7 +16,7 @@ pub struct Staking {
     pub bump: u8,
     pub authority: Pubkey,
     pub id: u16,
-    pub withdrawal_timelock: u32,
+    pub unstake_timelock: u32,
     pub stake_mint: Pubkey,
     pub reward_mint: Pubkey,
     pub reward_params: RewardParams,
@@ -57,18 +57,9 @@ pub struct Member {
     pub pending_amount: u64,
     pub rewards_amount: u64,
     pub last_reward_ts: u32,
+    pub pending_unstake_active: bool,
+    pub pending_unstake_end_ts: u32,
 }
 impl Member {
-    pub const LEN: usize = 1 + 8 + 8 + 8 + 8 + 4;
-}
-
-#[account]
-pub struct PendingWithdrawal {
-    pub bump: u8,
-    pub active: bool,
-    pub end_ts: u32,
-    pub amount: u64,
-}
-impl PendingWithdrawal {
-    pub const LEN: usize = 1 + 1 + 4 + 8;
+    pub const LEN: usize = 1 + 8 + 8 + 8 + 8 + 4 + 1 + 4;
 }
