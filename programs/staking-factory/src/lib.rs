@@ -34,6 +34,7 @@ pub mod staking_factory {
     pub fn create_staking(
         ctx: Context<CreateStaking>,
         stake_mint: Pubkey,
+        reward_mint: Pubkey,
         unstake_timelock: u32,
         reward_params: RewardParams,
     ) -> Result<()> {
@@ -45,7 +46,7 @@ pub mod staking_factory {
         ctx.accounts.staking.authority = ctx.accounts.authority.key();
         ctx.accounts.staking.id = ctx.accounts.factory.stakings_count;
         ctx.accounts.staking.stake_mint = stake_mint;
-        ctx.accounts.staking.reward_mint = ctx.accounts.reward_mint.key();
+        ctx.accounts.staking.reward_mint = reward_mint;
         ctx.accounts.staking.unstake_timelock = unstake_timelock;
         ctx.accounts.staking.reward_params = reward_params;
 

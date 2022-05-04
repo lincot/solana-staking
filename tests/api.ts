@@ -18,7 +18,7 @@ export async function initialize(ctx: Context): Promise<void> {
 
 export async function createStaking(
   ctx: Context,
-  withdrawalTimelock: number,
+  unstakeTimelock: number,
   rewardType: any
 ): Promise<void> {
   ctx.stakingId = (
@@ -26,13 +26,12 @@ export async function createStaking(
   ).stakingsCount;
 
   await ctx.program.methods
-    .createStaking(ctx.stakeMint, withdrawalTimelock, rewardType)
+    .createStaking(ctx.stakeMint, ctx.rewardMint, unstakeTimelock, rewardType)
     .accounts({
       factory: ctx.factory,
       staking: await ctx.staking(),
       configHistory: await ctx.configHistory(),
       stakesHistory: await ctx.stakesHistory(),
-      rewardMint: ctx.rewardMint,
       authority: ctx.stakingAuthority.publicKey,
       systemProgram: SystemProgram.programId,
     })

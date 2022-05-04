@@ -1,6 +1,6 @@
 use crate::account::*;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token};
+use anchor_spl::token::Token;
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
@@ -23,7 +23,6 @@ pub struct CreateStaking<'info> {
         space = 8 + Staking::LEN,
     )]
     pub staking: Account<'info, Staking>,
-    pub reward_mint: Account<'info, Mint>,
     #[account(
         init,
         payer = authority,
