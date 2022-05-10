@@ -83,14 +83,14 @@ impl RewardParams {
                 reward_period,
                 ..
             } => {
-                let claimed_rewards_count = (start_ts - config_start_ts) / reward_period;
+                let past_rewards_count = (start_ts - config_start_ts) / reward_period;
                 let all_rewards_count = (end_ts - config_start_ts) / reward_period;
-                let rewards_count = all_rewards_count - claimed_rewards_count;
+                let rewards_count = all_rewards_count - past_rewards_count;
                 *last_reward_ts += rewards_count * reward_period;
 
                 let mut reward_amount = 0u64;
 
-                for i in offset as u32 + claimed_rewards_count..offset as u32 + all_rewards_count {
+                for i in offset as u32 + past_rewards_count..offset as u32 + all_rewards_count {
                     if (stakes_history.len as u32) <= i {
                         // no one has checked this reward yet so its stakes_sum becomes current
                         stakes_history.stakes_sums[i as usize] = current_stakes_sum;
