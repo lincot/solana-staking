@@ -1,5 +1,4 @@
-use crate::account::*;
-use crate::error::*;
+use crate::{error::*, state::*};
 use anchor_lang::prelude::*;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone, Debug)]

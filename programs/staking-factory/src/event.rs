@@ -1,4 +1,4 @@
-use crate::reward::RewardParams;
+use crate::reward::*;
 use anchor_lang::prelude::*;
 
 #[event]
