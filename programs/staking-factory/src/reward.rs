@@ -84,12 +84,10 @@ impl RewardParams {
                 reward_period,
                 ..
             } => {
-                // align
-                *last_reward_ts -= (*last_reward_ts - config_start_ts) % reward_period;
-
-                let claimed_rewards_count = (*last_reward_ts - config_start_ts) / reward_period;
+                let claimed_rewards_count = (start_ts - config_start_ts) / reward_period;
                 let all_rewards_count = (end_ts - config_start_ts) / reward_period;
                 let rewards_count = all_rewards_count - claimed_rewards_count;
+                *last_reward_ts += rewards_count * reward_period;
 
                 let mut reward_amount = 0u64;
 
@@ -110,8 +108,6 @@ impl RewardParams {
                         )
                         .ok_or(StakingError::Overflow)?;
                 }
-
-                *last_reward_ts += rewards_count * reward_period;
 
                 reward_amount
             }

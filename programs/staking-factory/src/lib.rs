@@ -83,22 +83,40 @@ pub mod staking_factory {
 
             new_reward_params.validate_fields()?;
 
-            if let RewardParams::Proportional { reward_period, .. } =
-                ctx.accounts.staking.reward_params
-            {
-                let len = ctx.accounts.config_history.len as usize;
-                let rewards_dropped =
-                    (ts - ctx.accounts.config_history.start_timestamps[len - 1]) / reward_period;
-                ctx.accounts.stakes_history.offsets[len] =
-                    ctx.accounts.stakes_history.offsets[len - 1] + rewards_dropped as u8;
-            }
-
-            ctx.accounts.staking.reward_params = new_reward_params;
-
             let len = ctx.accounts.config_history.len as usize;
-            ctx.accounts.config_history.reward_params[len] = new_reward_params;
-            ctx.accounts.config_history.start_timestamps[len] = ts;
-            ctx.accounts.config_history.len += 1;
+
+            if ts < ctx.accounts.config_history.start_timestamps[len - 1] {
+                // last config is not yet started, so just change its params
+                ctx.accounts.config_history.reward_params[len - 1] = new_reward_params;
+            } else {
+                let next_start_ts = match ctx.accounts.staking.reward_params {
+                    RewardParams::Proportional { reward_period, .. } => {
+                        let time_from_last_reward = (ts
+                            - ctx.accounts.config_history.start_timestamps[len - 1])
+                            % reward_period;
+                        let next_start_ts = if time_from_last_reward == 0 {
+                            ts
+                        } else {
+                            ts + reward_period - time_from_last_reward
+                        };
+
+                        let total_rewards = (next_start_ts
+                            - ctx.accounts.config_history.start_timestamps[len - 1])
+                            / reward_period;
+                        ctx.accounts.stakes_history.offsets[len] =
+                            ctx.accounts.stakes_history.offsets[len - 1] + total_rewards as u8;
+
+                        next_start_ts
+                    }
+                    _ => ts,
+                };
+
+                ctx.accounts.staking.reward_params = new_reward_params;
+
+                ctx.accounts.config_history.reward_params[len] = new_reward_params;
+                ctx.accounts.config_history.start_timestamps[len] = next_start_ts;
+                ctx.accounts.config_history.len += 1;
+            }
         }
 
         emit!(ChangeConfigEvent {

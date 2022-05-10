@@ -13,7 +13,7 @@ export async function airdrop(
   await ctx.connection.confirmTransaction(
     await ctx.connection.requestAirdrop(
       ctx.payer.publicKey,
-      100_000_000 * (addresses.length + 1)
+      200_000_000 * (addresses.length + 1)
     )
   );
 
@@ -23,7 +23,7 @@ export async function airdrop(
     tx.add(
       SystemProgram.transfer({
         fromPubkey: ctx.payer.publicKey,
-        lamports: 100_000_000,
+        lamports: 200_000_000,
         toPubkey: addresses[i],
       })
     );

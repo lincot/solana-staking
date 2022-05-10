@@ -520,6 +520,131 @@ describe("proportional (1 user)", () => {
   });
 });
 
+describe("proportional (1 user, changing config)", () => {
+  it("creates staking", async () => {
+    await createStaking(ctx, 0, {
+      proportional: { totalAmount: new BN(100), rewardPeriod: 10 },
+    });
+  });
+
+  it("registers", async () => {
+    await registerMember(ctx, ctx.user1);
+  });
+
+  it("deposits", async () => {
+    await deposit(ctx, ctx.user1, 100);
+
+    expect(
+      await (
+        await ctx.stakeATA(await ctx.member(ctx.user1.publicKey))
+      ).amount(ctx)
+    ).to.eql(100);
+
+    const member = await ctx.program.account.member.fetch(
+      await ctx.member(ctx.user1.publicKey)
+    );
+    expect(member.availableAmount.toNumber()).to.eql(100);
+    expect(member.stakeAmount.toNumber()).to.eql(0);
+    expect(member.pendingAmount.toNumber()).to.eql(0);
+    expect(member.rewardsAmount.toNumber()).to.eql(0);
+  });
+
+  it("stakes", async () => {
+    await stake(ctx, ctx.user1, 100);
+
+    expect(
+      await (
+        await ctx.stakeATA(await ctx.member(ctx.user1.publicKey))
+      ).amount(ctx)
+    ).to.eql(100);
+
+    const member = await ctx.program.account.member.fetch(
+      await ctx.member(ctx.user1.publicKey)
+    );
+    expect(member.availableAmount.toNumber()).to.eql(0);
+    expect(member.stakeAmount.toNumber()).to.eql(100);
+    expect(member.pendingAmount.toNumber()).to.eql(0);
+    expect(member.rewardsAmount.toNumber()).to.eql(0);
+  });
+
+  it("changes config", async () => {
+    await sleep(7000);
+
+    await changeConfig(ctx, {
+      proportional: { totalAmount: new BN(200), rewardPeriod: 10 },
+    });
+  });
+
+  it("claims", async () => {
+    await sleep(10000);
+
+    await claimReward(ctx, ctx.user1);
+
+    expect(await (await ctx.rewardATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
+      291
+    );
+    await burnAll(ctx, await ctx.rewardATA(ctx.user1.publicKey), ctx.user1);
+
+    expect(await ctx.factoryVault.amount(ctx)).to.eql(9);
+    await burnAll(ctx, ctx.factoryVault, ctx.factoryAuthority);
+
+    expect(
+      await (
+        await ctx.stakeATA(await ctx.member(ctx.user1.publicKey))
+      ).amount(ctx)
+    ).to.eql(100);
+
+    const member = await ctx.program.account.member.fetch(
+      await ctx.member(ctx.user1.publicKey)
+    );
+    expect(member.availableAmount.toNumber()).to.eql(0);
+    expect(member.stakeAmount.toNumber()).to.eql(100);
+    expect(member.pendingAmount.toNumber()).to.eql(0);
+    expect(member.rewardsAmount.toNumber()).to.eql(0);
+  });
+
+  it("starts unstake", async () => {
+    await startUnstake(ctx, ctx.user1, 100);
+
+    const member = await ctx.program.account.member.fetch(
+      await ctx.member(ctx.user1.publicKey)
+    );
+    expect(member.availableAmount.toNumber()).to.eql(0);
+    expect(member.stakeAmount.toNumber()).to.eql(0);
+    expect(member.pendingAmount.toNumber()).to.eql(100);
+    expect(member.rewardsAmount.toNumber()).to.eql(0);
+  });
+
+  it("ends unstake", async () => {
+    await endUnstake(ctx, ctx.user1);
+
+    const member = await ctx.program.account.member.fetch(
+      await ctx.member(ctx.user1.publicKey)
+    );
+    expect(member.availableAmount.toNumber()).to.eql(100);
+    expect(member.stakeAmount.toNumber()).to.eql(0);
+    expect(member.pendingAmount.toNumber()).to.eql(0);
+    expect(member.rewardsAmount.toNumber()).to.eql(0);
+  });
+
+  it("withdraws", async () => {
+    await withdraw(ctx, ctx.user1, 100);
+
+    expect(await (await ctx.stakeATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
+      100
+    );
+    await burnAll(ctx, await ctx.stakeATA(ctx.user1.publicKey), ctx.user1);
+
+    const member = await ctx.program.account.member.fetch(
+      await ctx.member(ctx.user1.publicKey)
+    );
+    expect(member.availableAmount.toNumber()).to.eql(0);
+    expect(member.stakeAmount.toNumber()).to.eql(0);
+    expect(member.pendingAmount.toNumber()).to.eql(0);
+    expect(member.rewardsAmount.toNumber()).to.eql(0);
+  });
+});
+
 describe("proportional (2 users)", () => {
   it("creates staking", async () => {
     await createStaking(ctx, 0, {
