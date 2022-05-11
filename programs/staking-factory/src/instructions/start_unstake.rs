@@ -13,7 +13,7 @@ pub struct StartUnstake<'info> {
         mut,
         seeds = [b"member", staking.id.to_le_bytes().as_ref(), beneficiary.key().as_ref()],
         bump = member.bump,
-        constraint = !member.pending_unstake_active,
+        constraint = !member.pending_unstake_active @ StakingError::UnstakeActive,
     )]
     pub member: Account<'info, Member>,
 }

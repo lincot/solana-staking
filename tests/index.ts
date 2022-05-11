@@ -225,6 +225,10 @@ describe("instructions", () => {
   });
 
   it("startUnstake", async () => {
+    await expect(endUnstake(ctx, ctx.user1)).to.be.rejectedWith(
+      "UnstakeInactive"
+    );
+
     await expect(startUnstake(ctx, ctx.user1, 101)).to.be.rejectedWith(
       "InsufficientBalance"
     );
@@ -243,6 +247,10 @@ describe("instructions", () => {
       await ctx.staking()
     );
     expect(staking.stakesSum.toNumber()).to.eql(100);
+
+    await expect(startUnstake(ctx, ctx.user1, 0)).to.be.rejectedWith(
+      "UnstakeActive"
+    );
   });
 
   it("endUnstake", async () => {

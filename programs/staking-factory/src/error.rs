@@ -15,6 +15,12 @@ pub enum StakingError {
     #[msg("Not enough tokens for operation")]
     InsufficientBalance,
     /// 6004 0x1774
+    #[msg("There is an unfinished unstake")]
+    UnstakeActive,
+    /// 6005 0x1775
+    #[msg("Unstake is not started")]
+    UnstakeInactive,
+    /// 6006 0x1776
     #[msg("The unstake timelock has not yet expired")]
     UnstakeTimelock,
 }
