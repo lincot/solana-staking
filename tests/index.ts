@@ -16,16 +16,13 @@ import {
   startUnstake,
   withdraw,
 } from "./api";
-import { burnAll } from "./token";
 
 chai.use(chaiAsPromised);
 
 const ctx = new Context();
 
-describe("setup", () => {
-  it("setups", async () => {
-    await ctx.setup();
-  });
+before(async () => {
+  await ctx.setup();
 });
 
 describe("instructions", () => {
@@ -213,10 +210,7 @@ describe("instructions", () => {
     expect(
       await (await ctx.rewardATA(ctx.user1.publicKey)).amount(ctx)
     ).to.be.oneOf([39, 49, 59]);
-    await burnAll(ctx, await ctx.rewardATA(ctx.user1.publicKey), ctx.user1);
-
     expect(await ctx.factoryVault.amount(ctx)).to.eql(1);
-    await burnAll(ctx, ctx.factoryVault, ctx.factoryAuthority);
 
     const member = await ctx.program.account.member.fetch(
       await ctx.member(ctx.user1.publicKey)
@@ -279,12 +273,15 @@ describe("instructions", () => {
     expect(await (await ctx.stakeATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
       100
     );
-    await burnAll(ctx, await ctx.stakeATA(ctx.user1.publicKey), ctx.user1);
 
     const member = await ctx.program.account.member.fetch(
       await ctx.member(ctx.user1.publicKey)
     );
     expect(member.availableAmount.toNumber()).to.eql(0);
+  });
+
+  after(async () => {
+    await ctx.teardown();
   });
 });
 
@@ -343,10 +340,7 @@ describe("interest rate", () => {
     expect(
       await (await ctx.rewardATA(ctx.user1.publicKey)).amount(ctx)
     ).to.be.oneOf([39, 49, 59]);
-    await burnAll(ctx, await ctx.rewardATA(ctx.user1.publicKey), ctx.user1);
-
     expect(await ctx.factoryVault.amount(ctx)).to.eql(1);
-    await burnAll(ctx, ctx.factoryVault, ctx.factoryAuthority);
 
     expect(
       await (
@@ -372,7 +366,7 @@ describe("interest rate", () => {
     expect(member.availableAmount.toNumber()).to.eql(0);
     expect(member.stakeAmount.toNumber()).to.eql(0);
     expect(member.pendingAmount.toNumber()).to.eql(100);
-    expect(member.rewardsAmount.toNumber()).to.be.oneOf([10, 20]);
+    expect(member.rewardsAmount.toNumber()).to.eql(0);
   });
 
   it("ends unstake", async () => {
@@ -384,7 +378,7 @@ describe("interest rate", () => {
     expect(member.availableAmount.toNumber()).to.eql(100);
     expect(member.stakeAmount.toNumber()).to.eql(0);
     expect(member.pendingAmount.toNumber()).to.eql(0);
-    expect(member.rewardsAmount.toNumber()).to.be.oneOf([10, 20]);
+    expect(member.rewardsAmount.toNumber()).to.eql(0);
   });
 
   it("withdraws", async () => {
@@ -393,8 +387,6 @@ describe("interest rate", () => {
     expect(await (await ctx.stakeATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
       100
     );
-    await burnAll(ctx, await ctx.stakeATA(ctx.user1.publicKey), ctx.user1);
-
     expect(
       await (
         await ctx.stakeATA(await ctx.member(ctx.user1.publicKey))
@@ -407,7 +399,11 @@ describe("interest rate", () => {
     expect(member.availableAmount.toNumber()).to.eql(0);
     expect(member.stakeAmount.toNumber()).to.eql(0);
     expect(member.pendingAmount.toNumber()).to.eql(0);
-    expect(member.rewardsAmount.toNumber()).to.be.oneOf([10, 20]);
+    expect(member.rewardsAmount.toNumber()).to.eql(0);
+  });
+
+  after(async () => {
+    await ctx.teardown();
   });
 });
 
@@ -466,10 +462,7 @@ describe("proportional (1 user)", () => {
     expect(await (await ctx.rewardATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
       97
     );
-    await burnAll(ctx, await ctx.rewardATA(ctx.user1.publicKey), ctx.user1);
-
     expect(await ctx.factoryVault.amount(ctx)).to.eql(3);
-    await burnAll(ctx, ctx.factoryVault, ctx.factoryAuthority);
 
     expect(
       await (
@@ -516,7 +509,6 @@ describe("proportional (1 user)", () => {
     expect(await (await ctx.stakeATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
       100
     );
-    await burnAll(ctx, await ctx.stakeATA(ctx.user1.publicKey), ctx.user1);
 
     const member = await ctx.program.account.member.fetch(
       await ctx.member(ctx.user1.publicKey)
@@ -525,6 +517,10 @@ describe("proportional (1 user)", () => {
     expect(member.stakeAmount.toNumber()).to.eql(0);
     expect(member.pendingAmount.toNumber()).to.eql(0);
     expect(member.rewardsAmount.toNumber()).to.eql(0);
+  });
+
+  after(async () => {
+    await ctx.teardown();
   });
 });
 
@@ -591,10 +587,7 @@ describe("proportional (1 user, changing config)", () => {
     expect(await (await ctx.rewardATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
       291
     );
-    await burnAll(ctx, await ctx.rewardATA(ctx.user1.publicKey), ctx.user1);
-
     expect(await ctx.factoryVault.amount(ctx)).to.eql(9);
-    await burnAll(ctx, ctx.factoryVault, ctx.factoryAuthority);
 
     expect(
       await (
@@ -641,7 +634,6 @@ describe("proportional (1 user, changing config)", () => {
     expect(await (await ctx.stakeATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
       100
     );
-    await burnAll(ctx, await ctx.stakeATA(ctx.user1.publicKey), ctx.user1);
 
     const member = await ctx.program.account.member.fetch(
       await ctx.member(ctx.user1.publicKey)
@@ -650,6 +642,10 @@ describe("proportional (1 user, changing config)", () => {
     expect(member.stakeAmount.toNumber()).to.eql(0);
     expect(member.pendingAmount.toNumber()).to.eql(0);
     expect(member.rewardsAmount.toNumber()).to.eql(0);
+  });
+
+  after(async () => {
+    await ctx.teardown();
   });
 });
 
@@ -740,15 +736,10 @@ describe("proportional (2 users)", () => {
     expect(await (await ctx.rewardATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
       49
     );
-    await burnAll(ctx, await ctx.rewardATA(ctx.user1.publicKey), ctx.user1);
-
     expect(await (await ctx.rewardATA(ctx.user2.publicKey)).amount(ctx)).to.eql(
       49
     );
-    await burnAll(ctx, await ctx.rewardATA(ctx.user2.publicKey), ctx.user2);
-
     expect(await ctx.factoryVault.amount(ctx)).to.eql(2);
-    await burnAll(ctx, ctx.factoryVault, ctx.factoryAuthority);
 
     expect(
       await (
@@ -828,7 +819,6 @@ describe("proportional (2 users)", () => {
     expect(await (await ctx.stakeATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
       100
     );
-    await burnAll(ctx, await ctx.stakeATA(ctx.user1.publicKey), ctx.user1);
 
     const member = await ctx.program.account.member.fetch(
       await ctx.member(ctx.user1.publicKey)
@@ -841,7 +831,6 @@ describe("proportional (2 users)", () => {
     expect(await (await ctx.stakeATA(ctx.user2.publicKey)).amount(ctx)).to.eql(
       100
     );
-    await burnAll(ctx, await ctx.stakeATA(ctx.user2.publicKey), ctx.user2);
 
     const member2 = await ctx.program.account.member.fetch(
       await ctx.member(ctx.user2.publicKey)
@@ -850,6 +839,10 @@ describe("proportional (2 users)", () => {
     expect(member2.stakeAmount.toNumber()).to.eql(0);
     expect(member2.pendingAmount.toNumber()).to.eql(0);
     expect(member2.rewardsAmount.toNumber()).to.eql(0);
+  });
+
+  after(async () => {
+    await ctx.teardown();
   });
 });
 
@@ -912,10 +905,7 @@ describe("fixed", () => {
     expect(await (await ctx.rewardATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
       97
     );
-    await burnAll(ctx, await ctx.rewardATA(ctx.user1.publicKey), ctx.user1);
-
     expect(await ctx.factoryVault.amount(ctx)).to.eql(3);
-    await burnAll(ctx, ctx.factoryVault, ctx.factoryAuthority);
 
     expect(
       await (
@@ -962,7 +952,6 @@ describe("fixed", () => {
     expect(await (await ctx.stakeATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
       100
     );
-    await burnAll(ctx, await ctx.stakeATA(ctx.user1.publicKey), ctx.user1);
 
     const member = await ctx.program.account.member.fetch(
       await ctx.member(ctx.user1.publicKey)
@@ -971,5 +960,9 @@ describe("fixed", () => {
     expect(member.stakeAmount.toNumber()).to.eql(0);
     expect(member.pendingAmount.toNumber()).to.eql(0);
     expect(member.rewardsAmount.toNumber()).to.eql(0);
+  });
+
+  after(async () => {
+    await ctx.teardown();
   });
 });

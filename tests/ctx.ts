@@ -2,7 +2,7 @@ import * as anchor from "@project-serum/anchor";
 import { BN, Program } from "@project-serum/anchor";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { StakingFactory } from "../target/types/staking_factory";
-import { createMint, findATA, TokenAccount } from "./token";
+import { burnAll, createMint, findATA, TokenAccount } from "./token";
 import { airdrop, findPDA } from "./utils";
 
 export class Context {
@@ -51,6 +51,14 @@ export class Context {
     this.factory = await findPDA(this, [Buffer.from("factory")]);
 
     this.factoryVault = await this.rewardATA(this.factoryAuthority.publicKey);
+  }
+
+  async teardown() {
+    await burnAll(this, await this.rewardATA(this.user1.publicKey), this.user1);
+    await burnAll(this, await this.rewardATA(this.user2.publicKey), this.user2);
+    await burnAll(this, this.factoryVault, this.factoryAuthority);
+    await burnAll(this, await this.stakeATA(this.user1.publicKey), this.user1);
+    await burnAll(this, await this.stakeATA(this.user2.publicKey), this.user2);
   }
 
   async staking(): Promise<PublicKey> {
